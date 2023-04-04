@@ -1,4 +1,5 @@
 from .models import *
+from .models import LANGUAGE_CHOICES
 from .serializers import *
 from rest_framework_simplejwt.tokens import RefreshToken
 from authapp.renderer import UserRenderer
@@ -11,9 +12,9 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework import status
 import openai
+from django.conf import settings
 
-api_key="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"   
-openai.api_key=api_key
+openai.api_key=settings.API_KEY
 #Creating tokens manually
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -68,23 +69,21 @@ class ContenViews(APIView):
             return Response({"message":"user is required"})
         if not User.objects.filter(id=user_id).exists():
              return Response({"message":" user does not exist"})
-         
-         
         user=User.objects.get(id=user_id)
         user.user=user
-        Languageid=Language.objects.get(id=language)
-        Languageid.Languageid=Languageid
-        content_data=Content.objects.create(input=input,language=Languageid,user_id=user)
+        # Languageid=Language.objects.get(id=language)
+        # Languageid.Languageid=Languageid
+        content_data=Content.objects.create(input=input,language=language,user_id=user)
         serializers=ContentSerializer(data=content_data)
         content_data.save()
-        cdata=content_data.input
+        input_text=content_data.input
         content_id=content_data.id
         response = openai.Completion.create(
         model="text-davinci-003",
-        prompt=f"Auto Response Generator \n\nUser: {cdata} \n\nAI:\n",
+        prompt=f"Auto Response Generator \n\nUser: {input_text} \n\nAI:\n",
         temperature=0.7,
-        max_tokens=300,
-        top_p= 1,
+        max_tokens=600,
+        top_p=1,
         frequency_penalty=1,    
         presence_penalty=1,
         )

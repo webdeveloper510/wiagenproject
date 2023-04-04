@@ -182,3 +182,5 @@ AUTH_USER_MODEL = 'authapp.user'
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",   
 ]
+
+API_KEY="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"   
