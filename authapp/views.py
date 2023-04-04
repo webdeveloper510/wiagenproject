@@ -91,14 +91,7 @@ class ContenViews(APIView):
         output= response.choices[0].text
         update_content=Content.objects.filter(id=content_id).update(output=output)
         return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':output})
-        
-        # content_object = Content.objects.all()
-        # serializer=ContentSerializer(data=request.data)
-        # if serializer.is_valid(raise_exception=True):
-        #     user=serializer.save()
-        # return Response({'msg':'Data Added Succesfully'},status=status.HTTP_201_CREATED)
-        # return Response({errors:serializer.errors},status=status.HTTP_400_BAD_REQUEST)
-    
+         
 # @csrf_exempt
 # def index1(request):    
 #         input_text=request.POST.get('alpha')
