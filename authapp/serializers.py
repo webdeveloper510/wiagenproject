@@ -22,3 +22,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
        user.save()
        return user
     
+class ContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Content
+        fields="__all__"
+        
+class LanguageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Language
+        fields="__all__"
+        

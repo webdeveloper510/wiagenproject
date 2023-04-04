@@ -67,3 +67,14 @@ class User(AbstractBaseUser,PermissionsMixin):
     def is_staff(self):
         "Is the user a member of staff?"
         return self.is_admin
+
+class Language(models.Model):
+    language=models.CharField(max_length=30)
+       
+class Content(models.Model):
+    user_id=models.ForeignKey(User ,on_delete=models.CASCADE)
+    input=models.TextField()
+    output=models.TextField(null=True,blank=True)
+    variant=models.CharField(max_length=25,blank=True,default=" ")
+    language=models.ForeignKey(Language,on_delete=models.CASCADE)
+
