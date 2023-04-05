@@ -12,9 +12,13 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework import status
 import openai
+import googletrans
+from googletrans import Translator
 from django.conf import settings
 
+translator = Translator()
 openai.api_key=settings.API_KEY
+
 #Creating tokens manually
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -71,12 +75,11 @@ class ContenViews(APIView):
              return Response({"message":" user does not exist"})
         user=User.objects.get(id=user_id)
         user.user=user
-        # Languageid=Language.objects.get(id=language)
-        # Languageid.Languageid=Languageid
         content_data=Content.objects.create(input=input,language=language,user_id=user)
         serializers=ContentSerializer(data=content_data)
         content_data.save()
-        input_text=content_data.input
+        input_text=content_data.input                   ## get input data from the database.
+        language_detect=content_data.language           ## get language from the database
         content_id=content_data.id
         response = openai.Completion.create(
         model="text-davinci-003",
@@ -88,8 +91,9 @@ class ContenViews(APIView):
         presence_penalty=1,
         )
         output= response.choices[0].text
-        update_content=Content.objects.filter(id=content_id).update(output=output)
-        return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':output})
+        translated_output = translator.translate(output, dest=language_detect).text
+        update_content=Content.objects.filter(id=content_id).update(output=translated_output)
+        return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':translated_output})
          
 # @csrf_exempt
 # def index1(request):    

@@ -89,16 +89,11 @@ LANGUAGE_CHOICES = (
     ('sv','swedish'),('tg','tajik'),('ta','tamil'),('te','telugu'),('th','thai'),('tr','turkish'),
     ('uk','ukrainian'),('ur','urdu'),('uz','uzbek'),('vi','vietnamese'),('cy','welsh'),('xh','xhosa'),
     ('yi','yiddish'),('yo','yoruba'),('zu','zulu'),('he','Hebrew'),('fil','Filipino')
-
-
-
-        
     ) 
 class Content(models.Model):
     user_id=models.ForeignKey(User ,on_delete=models.CASCADE)
     input=models.TextField()
     output=models.TextField(null=True,blank=True)
     variant=models.CharField(max_length=25,blank=True,default=" ")
-    # language=models.ForeignKey(Language,on_delete=models.CASCADE) 
     language=models.CharField(choices=LANGUAGE_CHOICES,max_length=30)
 
