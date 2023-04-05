@@ -84,8 +84,8 @@ class ContenViews(APIView):
         response = openai.Completion.create(
         model="text-davinci-003",
         prompt=f"Auto Response Generator \n\nUser: {input_text} \n\nAI:\n",
-        temperature=0.7,
-        max_tokens=600,
+        temperature=1,
+        max_tokens=3000,
         top_p=1,
         frequency_penalty=1,    
         presence_penalty=1,
