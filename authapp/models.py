@@ -90,10 +90,14 @@ LANGUAGE_CHOICES = (
     ('uk','ukrainian'),('ur','urdu'),('uz','uzbek'),('vi','vietnamese'),('cy','welsh'),('xh','xhosa'),
     ('yi','yiddish'),('yo','yoruba'),('zu','zulu'),('he','Hebrew'),('fil','Filipino')
     ) 
+
+VARIANT_CHOICES=(
+    ("1 variant","1 variant"),("2 variant","2 variant"),("3 variant","3 variant")
+)
 class Content(models.Model):
-    user_id=models.ForeignKey(User ,on_delete=models.CASCADE)
+    user_id=models.ForeignKey(User,on_delete=models.CASCADE)
     input=models.TextField()
     output=models.TextField(null=True,blank=True)
-    variant=models.CharField(max_length=25,blank=True,default=" ")
+    variant=models.CharField(choices=VARIANT_CHOICES,max_length=30)
     language=models.CharField(choices=LANGUAGE_CHOICES,max_length=30)
 

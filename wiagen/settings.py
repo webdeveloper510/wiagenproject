@@ -183,4 +183,4 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",   
 ]
 
-API_KEY=""   
+API_KEY="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"   

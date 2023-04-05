@@ -61,51 +61,56 @@ class ContenViews(APIView):
     def post(self,request):
         input=request.data.get('input')
         language=request.data.get('language')
+        variant=request.data.get('variant')
         user_id=request.data.get('user_id')
         if not input:
             return Response({"message":"please provide input text"})
-        # if not Language.objects.filter(language=language).exists():
-        #      return Response({"message":"please provide valid language"})
         if not language:
             return Response({"message":"please select langusge"})
-       
+        if not variant:
+            return Response({"message":"select variant for creativity"})
         if not user_id:
             return Response({"message":"user is required"})
         if not User.objects.filter(id=user_id).exists():
              return Response({"message":" user does not exist"})
+         
         user=User.objects.get(id=user_id)
         user.user=user
-        content_data=Content.objects.create(input=input,language=language,user_id=user)
+        content_data=Content.objects.create(input=input,language=language,user_id=user,variant=variant)
         serializers=ContentSerializer(data=content_data)
         content_data.save()
+        
+#### get data from the database
+       
         input_text=content_data.input                   ## get input data from the database.
         language_detect=content_data.language           ## get language from the database
+        variant_data=content_data.variant               ## get variant option detect from the database
         content_id=content_data.id
-        response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=f"Auto Response Generator \n\nUser: {input_text} \n\nAI:\n",
-        temperature=1,
-        max_tokens=3000,
-        top_p=1,
-        frequency_penalty=1,    
-        presence_penalty=1,
-        )
-        output= response.choices[0].text
-        translated_output = translator.translate(output, dest=language_detect).text
-        update_content=Content.objects.filter(id=content_id).update(output=translated_output)
-        return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':translated_output})
-         
-# @csrf_exempt
-# def index1(request):    
-#         input_text=request.POST.get('alpha')
-#         if input_text:
-#             language=detect(input_text)
-#             text_writer=content_generate(input_text,language)  ### call to function 
-#             return render(request,'generate.html',{"output":text_writer})
-#         else:
-#             return HttpResponse(" Please Enter Some Text")
-#     else:
-#         return render(request,'generate.html')
- 
+        
+        if variant=="1 variant":
+            loops=1
+        elif variant=="2 variant":
+            loops=2
+        elif variant=="3 variant":
+            loops=3
+        else:
+            return Response ({"message":"Invalid varinat value"})
+        
+        outputs=[]
+        for i in range(loops):
+            response = openai.Completion.create(
+            model="text-davinci-003",
+            prompt=f"Auto Response Generator \n\nUser: {input_text} \n\nAI:\n",
+            temperature=1,
+            max_tokens=300,
+            top_p=1,
+            frequency_penalty=1,    
+            presence_penalty=1,
+            )
+            output= response.choices[0].text
+            translated_output = translator.translate(output, dest=language_detect).text                
+            outputs.append(translated_output)
+            print('VARIANT ---------------->',outputs)
+        update_content=Content.objects.filter(id=content_id).update(output=outputs)
+        return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':outputs})
 
-                  
