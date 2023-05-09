@@ -74,10 +74,10 @@ LANGUAGE_CHOICES = (
     ('hy', 'armenian'),('az','azerbaijani'),('eu','basque'),('be','belarusian'),('bn','bengali'),
     ('bs', 'bosnian'),('bg','bulgarian'),('ca','catalan'),('ceb','cebuano'),('ny','chichewa'),
     ('zh-cn', 'chinese (simplified)'),('zh-tw','chinese (traditional)'),('co','corsican'),
-    ('hr','croatian'),('cs','czech'),('da','danish'),('nl','dutch'),('en','english'),('eo','esperanto'),
+    ('hr','croatian'),('cs','czech'),('da','danish'),('nl','dutch'),('eo','esperanto'),
     ('et','estonian'),('tl','filipino'),('fi','finnish'),('fr','french'),('fy','frisian'),('gl','galician'),
     ('ka','georgian'),('de','german'),('el','greek'),('gu','gujarati'),('ht','haitian creole'),('ha','hausa'),
-    ('haw','hawaiian'),('iw','hebrew'),('hi','hindi'),('hmn','hmong'),('hu','hungarian'),('is','icelandic'),
+    ('haw','hawaiian'),('hi','hindi'),('hmn','hmong'),('hu','hungarian'),('is','icelandic'),
     ('ig','igbo'),('id','indonesian'),('ga','irish'),('it','italian'),('ja','japanese'),('jw','javanese'),
     ('kn','kannada'),('kk','kazakh'),('km','khmer'),('ko','korean'),('ku','kurdish (kurmanji)'),('ky','kyrgyz'),
     ('lo','lao'),('la','latin'),('lv','latvian'),('lt','lithuanian'),('lb','luxembourgish'),('mk','macedonian'),
@@ -94,6 +94,7 @@ LANGUAGE_CHOICES = (
 VARIANT_CHOICES=(
     ("1 variant","1 variant"),("2 variant","2 variant"),("3 variant","3 variant")
 )
+
 class Content(models.Model):
     user_id=models.ForeignKey(User,on_delete=models.CASCADE)
     input=models.TextField()
@@ -101,3 +102,31 @@ class Content(models.Model):
     variant=models.CharField(choices=VARIANT_CHOICES,max_length=30)
     language=models.CharField(choices=LANGUAGE_CHOICES,max_length=30)
 
+# class Cricket_Question_and_Answer(models.Model):
+#     question=models.TextField(max_length=1000)
+#     answer=models.TextField(max_length=1000)
+    
+    # class Meta:   
+    #     app_label = 'firstmyapp'
+    #     db_table ="cricket_question_and_answer"
+    # using = 'default'
+
+# class Mobile_Technology_Waves(models.Model):
+#     question=models.TextField(max_length=1000)
+#     answer=models.TextField(max_length=1000)
+    
+    # class Meta:
+    #     app_label = 'firstmyapp'
+    #     db_table ="mobile_technology_waves"
+
+    # # specify the database to use
+    # using = 'default'
+    
+class Technologies(models.Model):
+    question=models.TextField(max_length=1000)
+    answer=models.TextField(max_length=1000)
+
+    # class Meta:
+    #     app_label = 'firstmyapp'
+    #     db_table ="technologies"
+    # using = 'user1'
