@@ -108,9 +108,8 @@ class ContenViews(APIView):
             presence_penalty=1,
             )
             output= response.choices[0].text
-            translated_output = translator.translate(output, dest=language_detect).text                
+            translated_output = translator.translate(output, dest=language_detect).text
             outputs.append(translated_output)
-            print('VARIANT ---------------->',outputs)
         update_content=Content.objects.filter(id=content_id).update(output=outputs)
         return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':outputs})
 
