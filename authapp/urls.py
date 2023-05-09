@@ -10,10 +10,5 @@ urlpatterns = [
     path('generate/', views.ContenViews.as_view()),
     path('cricketscraping/',CricketScrapingView.as_view(),name='scraps'),
     path('get_mobile/',WebScrapDataView.as_view(),name='scrap'),
-<<<<<<< HEAD
     path('get_tech/',TechnologyView.as_view(),name='scrap'),
-=======
-    # path('get_tech/',TechnologyView.as_view(),name='scrap'),
->>>>>>> c542f30c5ce88e4c9c67e9958e324b8b56149b08
-
 ]
