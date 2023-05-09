@@ -103,16 +103,28 @@ class Content(models.Model):
     language=models.CharField(choices=LANGUAGE_CHOICES,max_length=30)
 
 class Cricket_Question_and_Answer(models.Model):
+<<<<<<< HEAD
      question=models.TextField(max_length=1000)
      answer=models.TextField(max_length=1000)
+=======
+    question=models.TextField(max_length=1000)
+    answer=models.TextField(max_length=1000)
+>>>>>>> c542f30c5ce88e4c9c67e9958e324b8b56149b08
     
     # class Meta:   
     #     app_label = 'firstmyapp'
     #     db_table ="cricket_question_and_answer"
     # using = 'default'
+<<<<<<< HEAD
 class Mobile_Technology_Waves(models.Model):
      question=models.TextField(max_length=1000)
      answer=models.TextField(max_length=1000)
+=======
+
+class Mobile_Technology_Waves(models.Model):
+    question=models.TextField(max_length=1000)
+    answer=models.TextField(max_length=1000)
+>>>>>>> c542f30c5ce88e4c9c67e9958e324b8b56149b08
     
     # class Meta:
     #     app_label = 'firstmyapp'

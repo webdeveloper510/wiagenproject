@@ -26,6 +26,7 @@ class ContentSerializer(serializers.ModelSerializer):
     class Meta:
         model= Content
         fields="__all__"
+<<<<<<< HEAD
  
 class CricketSerializer(serializers.ModelSerializer):
      class Meta:
@@ -42,6 +43,25 @@ class Mobile_Technology_WavesSerializer(serializers.ModelSerializer):
            
       def create(self, validate_data):
           return Mobile_Technology_Waves.objects.create(**validate_data)
+=======
+        
+
+class CricketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Cricket_Question_and_Answer
+        fields = '__all__'
+           
+    def create(self, validate_data):
+         return Cricket_Question_and_Answer.objects.create(**validate_data)
+     
+class Mobile_Technology_WavesSerializer(serializers.ModelSerializer):
+     class Meta:
+        model= Mobile_Technology_Waves
+        fields = '__all__'
+           
+     def create(self, validate_data):
+         return Mobile_Technology_Waves.objects.create(**validate_data)
+>>>>>>> c542f30c5ce88e4c9c67e9958e324b8b56149b08
 
     
 class TechnologieSerializer(serializers.ModelSerializer):
