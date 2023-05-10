@@ -18,8 +18,24 @@ from django.conf import settings
 from bs4 import BeautifulSoup
 import requests
 import re
-
+import pandas as pd
+import numpy as np
 translator = Translator()
+from keras.utils import pad_sequences
+from nltk.corpus import stopwords
+from numpy import loadtxt
+from keras.models import load_model
+from keras.models import Sequential,model_from_json 
+from keras.callbacks import EarlyStopping
+from keras.layers import LSTM, Dense,Dropout ,Embedding,SpatialDropout1D,GlobalAveragePooling1D 
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.preprocessing import LabelEncoder
+from keras.preprocessing.text import Tokenizer
+stemmer=PorterStemmer()
+import nltk
+nltk.download('stopwords')
 openai.api_key=settings.API_KEY
 
 #Creating tokens manually
@@ -129,7 +145,6 @@ class WebScrapDataView(APIView):
             h2_tag = p_tag.previous_sibling.previous_sibling
             if h2_tag is not None and h2_tag.name == "h2":
                 print(h2_tag.text)
-            print(p_tag.text)
             question = re.sub(pattern, '', h2_tag.text)
             answer=re.sub(pattern, '', p_tag.text)
             scrappy=Mobile_Technology_Waves.objects.create(question=question,answer=answer)
@@ -143,7 +158,7 @@ class WebScrapDataView(APIView):
 
 class CricketScrapingView(APIView):
     global array
-    def post(self, request, format=None):
+    def get(self, request, format=None):
         urls = ["https://www.prep4ias.com/top-300-cricket-general-knowledge-questions-and-answers/","https://www.edubabaji.com/top-50-cricket-gk-questions-answers-in-english/"]
         array=[]
         for index, url in enumerate(urls):
@@ -200,7 +215,6 @@ class CricketScrapingView(APIView):
                         data_dict2={"question":question,"answer":answer}
                         array.append(data_dict2)
         for x in array:
-            print(x)
             question=(x['question'])
             answer=(x['answer'])
             cricketdata=Cricket_Question_and_Answer.objects.create(question=question,answer=answer)
@@ -234,3 +248,144 @@ class TechnologyView(APIView):
             array.append(dict_data)
         print(array)
         return Response({"message":"scrap data successfully","status":"200","data":array})
+
+class ClusterView(APIView):
+    def get(self,request):
+        data=Cricket_Question_and_Answer.objects.all()
+        serializer=CricketSerializer(data=data,many=True)
+        if serializer.is_valid():
+            df1=pd.DataFrame(data=serializer.data)
+            print(df1)
+        else:
+            return Response({"message":"Sorry"})
+        return Response({"message":df1})
+    
+class TechnologiesView(APIView):
+    def get(self, request):
+
+        ##  READ CSV FILE 
+        data=pd.read_csv('/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/multiclass_dataset.csv')
+        print(data.info())
+
+        # CHECK THE INPUT AND LABEL
+        def example_question(index):
+            example=data[data.index==index][['question','label']].values[0]
+            if len(example)>0:
+                print(len(example))
+                print('Question----------------------------->>>>>>',example[0])
+                print('Category----------------------------->>>>>>',example[1])
+
+
+        # PREPROCESSING OR DATA CLEANING STEP 
+
+        REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
+        BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
+        STOPWORDS=set(stopwords.words("english"))
+
+        def clean_text(text):
+            if not text:
+                return ""
+            text=text.lower()
+            text=REPLACE_BY_SPACE_RE.sub(' ',text)
+            text=BAD_SYMBOLS_RE.sub(' ',text)
+            text=text.replace('x','')
+            text=' '.join(word for word in text.split() if word not in STOPWORDS)
+            return text
+
+        #  IMPLEMENT CLEAN TEXT FUNCTION ON QUESTION WHICH IS INPUT OF MODEL
+        data['question']=data['question'].apply(clean_text)
+
+
+
+        # SET THE STEP FOR MODEL
+
+        MAX_NB_WORDS = 1000
+        MAX_SEQUENCE_LENGTH =200
+        EMBEDDING_DIM = 100
+        oov_token = "<OOV>"
+        tokenizer = Tokenizer(num_words=MAX_NB_WORDS, oov_token = "<OOV>", lower=True)
+        tokenizer.fit_on_texts(data['question'].values)
+        word_index = tokenizer.word_index
+        sequence= tokenizer.texts_to_sequences(data['question'].values)
+        Sentences=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
+
+
+
+        # ENCODE THE LABEL VALUE IN NUMERICAL VIEW.
+
+        Y=data['label'].values
+        lbl_encoder = LabelEncoder()
+        lbl_encoder.fit(Y)
+        Label = lbl_encoder.transform(Y)
+
+        # FIND THE TOTAL NUMBER OF CLASS
+
+        total_cluster=(data["label"].unique())
+        num_class=len(total_cluster)
+
+        ## TRAIN A NEURAL NETWORK
+
+        model = Sequential()
+        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=MAX_SEQUENCE_LENGTH))
+        model.add(GlobalAveragePooling1D())
+        model.add(Dense(16, activation='relu'))
+        model.add(Dense(16, activation='relu'))
+        model.add(Dense(num_class, activation='softmax'))
+
+        model.compile(loss='sparse_categorical_crossentropy', 
+                    optimizer='adam', metrics=['accuracy'])
+
+        epochs = 500
+        batch_size=64
+        history = model.fit(Sentences, np.array(Label), epochs=epochs, batch_size=batch_size)
+
+        # # Save Model
+        # model_json=model.to_json()
+        # with open("classification_model.json", "w") as json_file:
+        #     json_file.write(model_json)
+        # model.save_weights("classification_model_weights.h5")
+
+        # Load Model
+
+        # json_file = open('/home/codenomad/Desktop/may_project/saved_model/classification_model.json', 'r')
+        # loaded_model_json = json_file.read()
+        # json_file.close()
+
+        # loaded_model = model_from_json(loaded_model_json)
+        # loaded_model.load_weights("/home/codenomad/Desktop/may_project/saved_model/classification_model_weights.h5")
+
+        # preprocessing User Input
+        new_input =',When was the first ODI Cricket World Cup held?'
+        cleaned_text = clean_text(new_input)
+        new_input = tokenizer.texts_to_sequences([cleaned_text])
+        new_input = pad_sequences(new_input, maxlen=MAX_SEQUENCE_LENGTH)                    # input
+
+        # Make a prediction on the new input
+        # pred=loaded_model.predict(new_input)          # when you use saved model 
+        pred = model.predict(new_input)                 # when youy train model
+        label=['Cricket','Mobile','Technology']
+        databasew_match=pred, label[np.argmax(pred)]
+        result=databasew_match[1]
+        
+        # Get the Anser
+        filter_data=data[data['label'] ==result]
+        get_all_questions=filter_data['question'].tolist()   
+        vectorizer = TfidfVectorizer()
+        vectorizer.fit(get_all_questions)
+        question_vectors = vectorizer.transform(get_all_questions)                                  # 2. all questions
+
+        input_vector = vectorizer.transform([cleaned_text])
+        similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
+        max_sim_index = np.argmax(similarity_scores)
+        similarity_percentage = similarity_scores[max_sim_index] * 100
+        print("Similarity Score",similarity_percentage)
+        if (similarity_percentage)>=75:
+            answer = filter_data.iloc[max_sim_index]['answer']
+            print("Label Name: -->",result)
+            print('\n')
+            print("Answer:-",answer)
+        else:
+            print("Label Name: -->","No Database Related to This Question")
+            print('\n')
+            print("Your Question has not Related any database question. Sorry , I have no Answer of This Question")
+        return Response({"Label":result,"Answer":answer})
