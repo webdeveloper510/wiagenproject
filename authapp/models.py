@@ -136,3 +136,13 @@ class UserDataModels(models.Model):
     input=models.TextField()
     database_type=models.CharField(choices=VARIANT_CHOICES,max_length=30)
     label=models.TextField()
+
+
+
+class Topic(models.Model):
+    Topic=models.CharField(max_length=200,null=True,blank=True)
+
+class QuestionAndAnswr(models.Model):
+    topic=models.ForeignKey(Topic,on_delete=models.CASCADE)
+    question=models.TextField(max_length=1000)
+    answer=models.TextField(max_length=1000)

@@ -65,10 +65,12 @@ class UserLoginView(APIView):
         email=request.data.get('email')
         password=request.data.get('password')
         user=authenticate(email=email,password=password)
-        
+        user_data=User.objects.filter(email=email).values("firstname")
+        username=user_data[0]['firstname']
+        print(username)
         if user is not None:
               token= get_tokens_for_user(user)
-              return Response({'message':'Login successful','status':'status.HTTP_200_OK',"token":token})
+              return Response({'message':'Login successful','status':'status.HTTP_200_OK',"username":username,"token":token})
         else:
               return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,121 +139,6 @@ class ContenViews(APIView):
         return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':outputs})   
     
 
-class WebScrapDataView(APIView):
-    def get(self, request, format=None):
-        page = requests.get("https://buildfire.com/mobile-technology-waves/")
-        soup = BeautifulSoup(page.content, "html.parser")
-        p_tags = soup.select("h2 + p")
-        array=[]
-        count=0
-        pattern = r'\d+'
-        for p_tag in p_tags:
-            h2_tag = p_tag.previous_sibling.previous_sibling
-            if h2_tag is not None and h2_tag.name == "h2":
-                print(h2_tag.text)
-            question = re.sub(pattern, '', h2_tag.text)
-            answer=re.sub(pattern, '', p_tag.text)
-            scrappy=Mobile_Technology_Waves.objects.create(question=question,answer=answer)
-            serializers=Mobile_Technology_WavesSerializer(data=scrappy)
-            scrappy.save()
-            count+=1
-            if count==23:
-                break
-        return Response({"message":"scrap data successfully","status":"200","Data":array})
-
-
-class CricketScrapingView(APIView):
-    global array
-    def get(self, request, format=None):
-        urls = ["https://www.prep4ias.com/top-300-cricket-general-knowledge-questions-and-answers/","https://www.edubabaji.com/top-50-cricket-gk-questions-answers-in-english/"]
-        array=[]
-        for index, url in enumerate(urls):
-            if index ==0:
-                    print(url)
-
-                    response = requests.get(url)
-                    html_content = response.content
-                    soup = BeautifulSoup(html_content, "html.parser")
-                    pattern = r'^\d{1,2}\b'
-                    h3_tags = soup.find_all("h3")
-                    count = 0
-                    for h3 in h3_tags:
-                        if count == 60:
-                            break
-                        question=h3.text
-                        question=re.sub(r'\.', '', question)
-                        question=re.sub(r'\d+', '', question)
-                        # print(question)
-                        answer=h3.find_next("p").text
-                        answer=re.sub(r'\.', '', answer)
-                        answer= re.sub(r'\bAns\b', '', answer)
-                        data_dict={"question":question,"answer":answer}
-                        array.append(data_dict)
-                        # print(array)
-                        count += 1
-            if index ==1:
-                    print(url)
-                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-
-                    response = requests.get(url,headers=headers)
-
-                    soup = BeautifulSoup(response.content, "html.parser")
-
-                    video_wrapper = soup.find("div", {"class": "jetpack-video-wrapper"})
-
-                    ol_tag = soup.find('ol')
-
-                    for li_tag in ol_tag.find_all('li'):
-                        li_text = li_tag.text.strip()
-                        strong_tag = li_tag.find('strong')
-                        if strong_tag:
-                            strong_text = strong_tag.text.strip()
-                        else:
-                            strong_text = None
-                        
-                        question=li_text
-                        question=question.split('?')[0] + '?'
-                        # print(question)
-
-                        answer=strong_text
-                        answer=answer[1:]
-                        # print(answer)
-                        data_dict2={"question":question,"answer":answer}
-                        array.append(data_dict2)
-        for x in array:
-            question=(x['question'])
-            answer=(x['answer'])
-            cricketdata=Cricket_Question_and_Answer.objects.create(question=question,answer=answer)
-            # serializer=CricketSerializer(data=cricketdata)
-            cricketdata.save()
-        return Response({"message":"scrap data successfully","status":"200","data":"ok"})
-    
-
-
-
-class TechnologyView(APIView):
-    def get(self, request, format=None):
-        page = requests.get("https://www.ishir.com/blog/55810/top-15-emerging-technology-trends-to-watch-in-2023-and-beyond.htm")
-        soup = BeautifulSoup(page.content, "html.parser")
-        h3_tags = soup.find_all('h3')
-        array=[]
-        pattern = r'^\d{1,2}\b'
-        for h3 in h3_tags:
-            h3_text = h3.text.strip()
-            question=h3_text
-            question= question.replace(".", "")
-            question = re.sub(pattern, '', question)
-
-            # find the first paragraph tag after the h3 tag and extract its text
-            paragraph = h3.find_next('p')
-            if paragraph is not None:
-                paragraph_text = paragraph.text.strip()
-                answer=paragraph_text
-            scrappy=Technologies.objects.create(question=question,answer=answer) 
-            dict_data={"question":question,"answer":answer}
-            array.append(dict_data)
-        print(array)
-        return Response({"message":"scrap data successfully","status":"200","data":array})
 
 class ClusterView(APIView):
     def get(self,request):
@@ -334,3 +221,220 @@ class TechnologiesView(APIView):
             return Response({"Label Name":result,"Answer":answer})
         else:
             return Response({"Label Name":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})
+
+
+class CricketScrapingView(APIView):
+    def post(self, request, format=None):
+        topic_id=request.data.get('topic_id')
+        if not topic_id:
+            return Response({"message":"topic_id is required"})
+        urls = ["https://www.prep4ias.com/top-300-cricket-general-knowledge-questions-and-answers/","https://www.edubabaji.com/top-50-cricket-gk-questions-answers-in-english/"]
+
+        array=[] 
+        for index, url in enumerate(urls):
+            if index ==0:
+                    print(url)
+
+                    response = requests.get(url)
+                    html_content = response.content
+                    soup = BeautifulSoup(html_content, "html.parser")
+                    pattern = r'^\d{1,2}\b'
+                    h3_tags = soup.find_all("h3")
+                    count = 0
+                    for h3 in h3_tags:
+                        if count == 60:
+                            break
+                        question=h3.text
+                        question=re.sub(r'\.', '', question)
+                        question=re.sub(r'\d+', '', question)
+                        # print(question)
+                        answer=h3.find_next("p").text
+                        answer=re.sub(r'\.', '', answer)
+                        answer= re.sub(r'\bAns\b', '', answer)
+                        data_dict={"question":question,"answer":answer}
+                        array.append(data_dict)
+                        # print(array)
+                        count += 1
+            if index ==1:
+                    print(url)
+                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+
+                    response = requests.get(url,headers=headers)
+
+                    soup = BeautifulSoup(response.content, "html.parser")
+
+                    video_wrapper = soup.find("div", {"class": "jetpack-video-wrapper"})
+
+                    ol_tag = soup.find('ol')
+
+                    for li_tag in ol_tag.find_all('li'):
+                        li_text = li_tag.text.strip()
+                        strong_tag = li_tag.find('strong')
+                        if strong_tag:
+                            strong_text = strong_tag.text.strip()
+                        else:
+                            strong_text = None
+                        
+                        question=li_text
+                        question=question.split('?')[0] + '?'
+                        # print(question)
+
+                        answer=strong_text
+                        answer=answer[1:]
+                        # print(answer)
+                        data_dict2={"question":question,"answer":answer}
+                        array.append(data_dict2)
+        print(array)
+        for x in array:
+             question=(x['question'])
+             answer=(x['answer'])
+             topic = Topic.objects.get(id= topic_id)
+             topic.topic = topic
+             cricketdata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
+             serializer=QuestionAndAnswrSerializer(data=cricketdata)
+             cricketdata.save()
+        return Response({"message":"scrap data successfully","status":"200","data":len(array)})
+    
+#mobile waves
+class WebScrapDataView(APIView):
+     def post(self, request, format=None):
+        topic_id=request.data.get('topic_id')
+        if not topic_id:
+            return Response({"message":"topic_id is required"})
+
+        page = requests.get("https://buildfire.com/mobile-technology-waves/")
+        soup = BeautifulSoup(page.content, "html.parser")
+        p_tags = soup.select("h2 + p")
+        array=[]
+        count=0
+        pattern = r'\d+'
+        for p_tag in p_tags:
+            h2_tag = p_tag.previous_sibling.previous_sibling
+            if h2_tag is not None and h2_tag.name == "h2":
+                print(h2_tag.text)
+            print(p_tag.text)
+            question = re.sub(pattern, '', h2_tag.text)
+            answer=re.sub(pattern, '', p_tag.text)
+            topic = Topic.objects.get(id= topic_id)
+            topic.topic = topic
+            scrappy=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
+            serializer=QuestionAndAnswrSerializer(data=scrappy)
+            scrappy.save()
+            count+=1
+            if count==23:
+                break
+            dict_data={"question":question,"answer":answer}
+            array.append(dict_data)
+            print(array)
+            
+        return Response({"message":"scrap data successfully","status":"200","Data":array})
+#mobile technology secand part
+class MobileAppDevelopementView(APIView):
+      def post(self, request, format=None):
+            topic_id=request.data.get('topic_id')
+            if not topic_id:
+                return Response({"message":"topic_id is required"})
+
+            url= "https://splitmetrics.com/blog/mobile-trends-for-2022/"
+            response = requests.get(url)
+            html_content = response.content
+            soup = BeautifulSoup(html_content, "html.parser")
+            h3_tags = soup.find_all("h3")
+            # count = 0
+            # data_count=0
+            for h3 in h3_tags:
+                      
+                 question=h3.text
+                 dot_index = question.find('.')
+                 if dot_index != -1:
+                    question = question[dot_index+1:].strip()
+                 print(question)
+                 answer=h3.find_next("p").text
+                 print(answer)
+                 topic = Topic.objects.get(id= topic_id)
+                 topic.topic = topic
+                 mobiledata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
+                 serializer=QuestionAndAnswrSerializer(data=mobiledata)
+                 mobiledata.save()
+            return Response({"message":"scrap data successfully","status":"200"})
+
+
+#technology
+class EmergingTechnologyView(APIView):
+    def post(self, request, format=None):
+        topic_id=request.data.get('topic_id')
+        if not topic_id:
+            return Response({"message":"topic_id is required"})
+        page = requests.get("https://www.ishir.com/blog/55810/top-15-emerging-technology-trends-to-watch-in-2023-and-beyond.htm")
+        soup = BeautifulSoup(page.content, "html.parser")
+        h3_tags = soup.find_all('h3')
+        array=[]
+        pattern = r'^\d{1,2}\b'
+        for h3 in h3_tags:
+            h3_text = h3.text.strip()
+            question=h3_text
+            question= question.replace(".", "")
+            question = re.sub(pattern, '', question)
+
+            # find the first paragraph tag after the h3 tag and extract its text
+            paragraph = h3.find_next('p')
+            if paragraph is not None:
+                paragraph_text = paragraph.text.strip()
+                answer=paragraph_text
+            topic = Topic.objects.get(id= topic_id)
+            topic.topic = topic
+            scrappy=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
+            serializers=QuestionAndAnswrSerializer(data=scrappy)
+            dict_data={"question":question,"answer":answer}
+            array.append(dict_data)
+        return Response({"message":"scrap data successfully","status":"200","data":array})
+
+
+#football question and answer api
+class FootballScrapingView(APIView):
+      def post(self, request, format=None):
+            topic_id=request.data.get('topic_id')
+            if not topic_id:
+             return Response({"message":"topic_id is required"})
+            url = "https://questionsgems.com/football-quiz-questions/"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+            response = requests.get(url,headers=headers)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            question_elements = soup.find_all('p')
+
+            for count, x in enumerate(question_elements[1:150], start=2):
+    
+                question = x.text.strip()
+                answer_index = question.find("Answer:")
+                if answer_index != -1:
+                    answer = question[answer_index + len("Answer:"):].strip()
+                    question = question[:answer_index].strip()
+                    print("q",question)
+                    print("a",answer)
+                    count+=1
+                    topic = Topic.objects.get(id= topic_id)
+                    topic.topic = topic
+                    football_data=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
+                    serializer=QuestionAndAnswrSerializer(data=football_data)
+                    football_data.save()
+            return Response({"message":"scrap data successfully","status":"200"})
+
+class QuestionandAnswerListView(APIView):
+        def get(self, request, format=None):
+            service = QuestionAndAnswr.objects.all().order_by('id')
+            serializer = QuestionAndAnswrSerializer(service, many=True)
+            array=[]
+            for x in serializer.data:
+               topic_id=x["topic"]
+               question=x["question"]
+               answer=x["answer"]
+               topicvalue=Topic.objects.filter(id=topic_id).values('Topic')
+               TopicName=(topicvalue[0]['Topic'])
+               data_dict={"Topic":TopicName,"question":question,"answer":answer}
+               array.append(data_dict)
+            print(array)   
+            return Response({"message":"success","code":"200","data":array})
+        
+        

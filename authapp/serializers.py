@@ -59,3 +59,20 @@ class UserDataSerializer(serializers.ModelSerializer):
         model= Content
         fields="__all__"
 
+class TopicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Topic
+        fields = '__all__'
+           
+    def create(self, validate_data):
+        return Topic.objects.create(**validate_data)
+
+
+
+class QuestionAndAnswrSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= QuestionAndAnswr
+        fields = '__all__'
+           
+    def create(self, validate_data):
+        return QuestionAndAnswr.objects.create(**validate_data)
