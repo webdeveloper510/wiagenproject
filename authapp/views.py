@@ -70,9 +70,19 @@ class UserLoginView(APIView):
         print(username)
         if user is not None:
               token= get_tokens_for_user(user)
-              return Response({'message':'Login successful','status':'status.HTTP_200_OK',"username":username,"token":token})
+              return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_400_BAD_REQUEST)
         else:
               return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
+
+class ProfileView(APIView):
+    renderer_classes=[UserRenderer]
+    permission_classes=[IsAuthenticated]
+    def post(self,request,format=None):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data,status=status.HTTP_200_OK)
+
+
+
 
 class LogoutUser(APIView):
     renderer_classes = [UserRenderer]
@@ -436,5 +446,23 @@ class QuestionandAnswerListView(APIView):
                array.append(data_dict)
             print(array)   
             return Response({"message":"success","code":"200","data":array})
+       
+class AdminScraping(APIView):
+    def post(self, request, format=None):
+        url = request.data.get("url")
+        if not url:
+            return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
         
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
         
+        response = requests.get(url,headers=headers)
+        
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        paragraph = soup.find('p')
+        if paragraph:
+            first_paragraph = paragraph.text.strip()
+            return Response({"Data": first_paragraph}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "No data found"}, status=status.HTTP_404_NOT_FOUND)
+       
