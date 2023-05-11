@@ -52,3 +52,10 @@ class TechnologieSerializer(serializers.ModelSerializer):
            
     def create(self, validate_data):
         return Technologies.objects.create(**validate_data)
+    
+    
+class UserDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Content
+        fields="__all__"
+

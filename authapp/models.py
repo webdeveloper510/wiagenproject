@@ -92,11 +92,11 @@ LANGUAGE_CHOICES = (
     ) 
 
 VARIANT_CHOICES=(
-    ("1 variant","1 variant"),("2 variant","2 variant"),("3 variant","3 variant")
+    ("Cricket","Cricket"),("Mobile","Mobile"),("Technology","Technology")
 )
 
 class Content(models.Model):
-    user_id=models.ForeignKey(User,on_delete=models.CASCADE)
+    user=models.ForeignKey(User,on_delete=models.CASCADE)
     input=models.TextField()
     output=models.TextField(null=True,blank=True)
     variant=models.CharField(choices=VARIANT_CHOICES,max_length=30)
@@ -130,3 +130,9 @@ class Technologies(models.Model):
     #     app_label = 'firstmyapp'
     #     db_table ="technologies"
     # using = 'user1'
+
+
+class UserDataModels(models.Model):
+    input=models.TextField()
+    database_type=models.CharField(choices=VARIANT_CHOICES,max_length=30)
+    label=models.TextField()

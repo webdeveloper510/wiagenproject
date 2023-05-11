@@ -33,9 +33,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import LabelEncoder
 from keras.preprocessing.text import Tokenizer
+import itertools
+import os
+# path=os.path.abspath("src/examplefile.txt")
+
+
 stemmer=PorterStemmer()
 import nltk
-nltk.download('stopwords')
 openai.api_key=settings.API_KEY
 
 #Creating tokens manually
@@ -66,7 +70,7 @@ class UserLoginView(APIView):
               token= get_tokens_for_user(user)
               return Response({'message':'Login successful','status':'status.HTTP_200_OK',"token":token})
         else:
-              return Response({'message':'Please Enter Valid email or password',"status":"status.HTTP_404_NOT_FOUND"})
+              return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutUser(APIView):
     renderer_classes = [UserRenderer]
@@ -261,44 +265,31 @@ class ClusterView(APIView):
         return Response({"message":df1})
     
 class TechnologiesView(APIView):
-    def get(self, request):
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    csv_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/multiclass_dataset.csv"
 
-        ##  READ CSV FILE 
-        data=pd.read_csv('/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/multiclass_dataset.csv')
-        print(data.info())
-
-        # CHECK THE INPUT AND LABEL
-        def example_question(index):
-            example=data[data.index==index][['question','label']].values[0]
-            if len(example)>0:
-                print(len(example))
-                print('Question----------------------------->>>>>>',example[0])
-                print('Category----------------------------->>>>>>',example[1])
-
-
-        # PREPROCESSING OR DATA CLEANING STEP 
-
+    def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
         BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
         STOPWORDS=set(stopwords.words("english"))
-
-        def clean_text(text):
-            if not text:
-                return ""
-            text=text.lower()
-            text=REPLACE_BY_SPACE_RE.sub(' ',text)
-            text=BAD_SYMBOLS_RE.sub(' ',text)
-            text=text.replace('x','')
-            text=' '.join(word for word in text.split() if word not in STOPWORDS)
-            return text
-
-        #  IMPLEMENT CLEAN TEXT FUNCTION ON QUESTION WHICH IS INPUT OF MODEL
-        data['question']=data['question'].apply(clean_text)
-
-
-
+        if not text:
+            return ""
+        text=text.lower()
+        text=REPLACE_BY_SPACE_RE.sub(' ',text)
+        text=BAD_SYMBOLS_RE.sub(' ',text)
+        text=text.replace('x','')
+        text=' '.join(word for word in text.split() if word not in STOPWORDS)
+        return text
+    
+    def post(self, request):
+        data=pd.read_csv(self.csv_path)
+        total_cluster=(data["label"].unique())
+        print(total_cluster)
+        num_class=len(total_cluster)
+        
+        
         # SET THE STEP FOR MODEL
-
         MAX_NB_WORDS = 1000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
@@ -306,68 +297,27 @@ class TechnologiesView(APIView):
         tokenizer = Tokenizer(num_words=MAX_NB_WORDS, oov_token = "<OOV>", lower=True)
         tokenizer.fit_on_texts(data['question'].values)
         word_index = tokenizer.word_index
-        sequence= tokenizer.texts_to_sequences(data['question'].values)
-        Sentences=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
-
-
-
-        # ENCODE THE LABEL VALUE IN NUMERICAL VIEW.
-
-        Y=data['label'].values
-        lbl_encoder = LabelEncoder()
-        lbl_encoder.fit(Y)
-        Label = lbl_encoder.transform(Y)
-
-        # FIND THE TOTAL NUMBER OF CLASS
-
-        total_cluster=(data["label"].unique())
-        num_class=len(total_cluster)
-
-        ## TRAIN A NEURAL NETWORK
-
-        model = Sequential()
-        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=MAX_SEQUENCE_LENGTH))
-        model.add(GlobalAveragePooling1D())
-        model.add(Dense(16, activation='relu'))
-        model.add(Dense(16, activation='relu'))
-        model.add(Dense(num_class, activation='softmax'))
-
-        model.compile(loss='sparse_categorical_crossentropy', 
-                    optimizer='adam', metrics=['accuracy'])
-
-        epochs = 500
-        batch_size=64
-        history = model.fit(Sentences, np.array(Label), epochs=epochs, batch_size=batch_size)
-
-        # # Save Model
-        # model_json=model.to_json()
-        # with open("classification_model.json", "w") as json_file:
-        #     json_file.write(model_json)
-        # model.save_weights("classification_model_weights.h5")
-
-        # Load Model
-
-        # json_file = open('/home/codenomad/Desktop/may_project/saved_model/classification_model.json', 'r')
-        # loaded_model_json = json_file.read()
-        # json_file.close()
-
-        # loaded_model = model_from_json(loaded_model_json)
-        # loaded_model.load_weights("/home/codenomad/Desktop/may_project/saved_model/classification_model_weights.h5")
-
-        # preprocessing User Input
-        new_input =',When was the first ODI Cricket World Cup held?'
-        cleaned_text = clean_text(new_input)
-        new_input = tokenizer.texts_to_sequences([cleaned_text])
-        new_input = pad_sequences(new_input, maxlen=MAX_SEQUENCE_LENGTH)                    # input
-
-        # Make a prediction on the new input
-        # pred=loaded_model.predict(new_input)          # when you use saved model 
-        pred = model.predict(new_input)                 # when youy train model
-        label=['Cricket','Mobile','Technology']
+        
+        user_input = request.POST.get("input")
+        cleaned_text =self.clean_text(user_input)
+        sequence= tokenizer.texts_to_sequences([cleaned_text])
+        new_input=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
+      
+      
+      
+        # Load a model
+        json_file = open(self.model_path, 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        loaded_model = model_from_json(loaded_model_json)
+        loaded_model.load_weights("/home/codenomad/Desktop/may_project/saved_model/classification_model_weights.h5")
+      
+      
+        pred = loaded_model.predict(new_input)
+        label=['Cricket','Technology','Mobile']
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
-        
-        # Get the Anser
+        # get the Answer
         filter_data=data[data['label'] ==result]
         get_all_questions=filter_data['question'].tolist()   
         vectorizer = TfidfVectorizer()
@@ -381,11 +331,6 @@ class TechnologiesView(APIView):
         print("Similarity Score",similarity_percentage)
         if (similarity_percentage)>=75:
             answer = filter_data.iloc[max_sim_index]['answer']
-            print("Label Name: -->",result)
-            print('\n')
-            print("Answer:-",answer)
+            return Response({"Label Name":result,"Answer":answer})
         else:
-            print("Label Name: -->","No Database Related to This Question")
-            print('\n')
-            print("Your Question has not Related any database question. Sorry , I have no Answer of This Question")
-        return Response({"Label":result,"Answer":answer})
+            return Response({"Label Name":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})

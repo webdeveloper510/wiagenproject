@@ -11,5 +11,5 @@ urlpatterns = [
     path('cricketscraping/',CricketScrapingView.as_view(),name='scraps'),
     path('get_mobile/',WebScrapDataView.as_view(),name='scrap'),
     path('get_tech/',TechnologyView.as_view(),name='scrap'),
-    path('classification/',TechnologiesView.as_view()),
+    path('prediction/',TechnologiesView.as_view()),
 ]
