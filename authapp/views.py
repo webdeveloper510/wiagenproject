@@ -70,7 +70,7 @@ class UserLoginView(APIView):
         print(username)
         if user is not None:
               token= get_tokens_for_user(user)
-              return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_400_BAD_REQUEST)
+              return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_200_OK)
         else:
               return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
 
@@ -456,13 +456,22 @@ class AdminScraping(APIView):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
         
         response = requests.get(url,headers=headers)
-        
         soup = BeautifulSoup(response.text, "html.parser")
+
+        first_paragraph = soup.find('p')
         
-        paragraph = soup.find('p')
-        if paragraph:
-            first_paragraph = paragraph.text.strip()
-            return Response({"Data": first_paragraph}, status=status.HTTP_200_OK)
-        else:
-            return Response({"message": "No data found"}, status=status.HTTP_404_NOT_FOUND)
+        if first_paragraph:
+            return Response({"first_paragraph": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
+        
+        first_image = soup.find('img', alt=True)
+        
+        if first_image:
+            return Response({"first_image_alt": first_image['alt']}, status=status.HTTP_200_OK)
+        
+        h1_tag = soup.find('h1')
+        
+        if h1_tag:
+            return Response({"h1_tag_text": h1_tag.text.strip()}, status=status.HTTP_200_OK)
+        
+        return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
        
