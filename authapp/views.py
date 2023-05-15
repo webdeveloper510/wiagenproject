@@ -35,6 +35,7 @@ from sklearn.preprocessing import LabelEncoder
 from keras.preprocessing.text import Tokenizer
 import itertools
 import os
+from django.contrib.auth import login
 # path=os.path.abspath("src/examplefile.txt")
 
 
@@ -62,15 +63,23 @@ class UserRegistrationView(APIView):
 class UserLoginView(APIView):
     renderer_classes=[UserRenderer]
     def post(self,request,format=None):
-        email=request.data.get('email')
-        password=request.data.get('password')
-        user=authenticate(email=email,password=password)
-        user_data=User.objects.filter(email=email).values("firstname")
-        username=user_data[0]['firstname']
-        print(username)
-        if user is not None:
-              token= get_tokens_for_user(user)
-              return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_200_OK)
+        email = request.data.get('email')
+        password = request.data.get('password')
+        user = authenticate(email=email, password=password)
+        if not email:
+             return Response({"message":"email is required"},status=status.HTTP_400_BAD_REQUEST)
+        if not password:
+             return Response({"message":"password is required"},status=status.HTTP_400_BAD_REQUEST)
+        
+        if not User.objects.filter(email=email).exists(): 
+            return Response({"message":"invalid email address"},status=status.HTTP_400_BAD_REQUEST)
+        
+        if user:
+            login(request, user)
+            token=get_tokens_for_user(user)
+            user_data=User.objects.filter(email=email).values("firstname")
+            username=user_data[0]['firstname']
+            return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_200_OK)
         else:
               return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
 
@@ -303,7 +312,7 @@ class CricketScrapingView(APIView):
              cricketdata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
              serializer=QuestionAndAnswrSerializer(data=cricketdata)
              cricketdata.save()
-        return Response({"message":"scrap data successfully","status":"200","data":len(array)})
+        return Response({"message":"scrap data successfully","status":"200","data":len(array)},status=status.HTTP_200_OK)
     
 #mobile waves
 class WebScrapDataView(APIView):
@@ -337,7 +346,7 @@ class WebScrapDataView(APIView):
             array.append(dict_data)
             print(array)
             
-        return Response({"message":"scrap data successfully","status":"200","Data":array})
+        return Response({"message":"scrap data successfully","status":"200","Data":array},status=status.HTTP_200_OK)
 #mobile technology secand part
 class MobileAppDevelopementView(APIView):
       def post(self, request, format=None):
@@ -366,7 +375,7 @@ class MobileAppDevelopementView(APIView):
                  mobiledata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
                  serializer=QuestionAndAnswrSerializer(data=mobiledata)
                  mobiledata.save()
-            return Response({"message":"scrap data successfully","status":"200"})
+            return Response({"message":"scrap data successfully","status":"200"},status=status.HTTP_200_OK)
 
 
 #technology
@@ -397,7 +406,7 @@ class EmergingTechnologyView(APIView):
             serializers=QuestionAndAnswrSerializer(data=scrappy)
             dict_data={"question":question,"answer":answer}
             array.append(dict_data)
-        return Response({"message":"scrap data successfully","status":"200","data":array})
+        return Response({"message":"scrap data successfully","status":"200","data":array},status=status.HTTP_200_OK)
 
 
 #football question and answer api
@@ -429,7 +438,7 @@ class FootballScrapingView(APIView):
                     football_data=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
                     serializer=QuestionAndAnswrSerializer(data=football_data)
                     football_data.save()
-            return Response({"message":"scrap data successfully","status":"200"})
+            return Response({"message":"scrap data successfully","status":"200"},status=status.HTTP_200_OK)
 
 class QuestionandAnswerListView(APIView):
         def get(self, request, format=None):
@@ -445,7 +454,7 @@ class QuestionandAnswerListView(APIView):
                data_dict={"Topic":TopicName,"question":question,"answer":answer}
                array.append(data_dict)
             print(array)   
-            return Response({"message":"success","code":"200","data":array})
+            return Response({"message":"success","code":"200","data":array},status=status.HTTP_200_OK)
        
 class AdminScraping(APIView):
     def post(self, request, format=None):
@@ -461,17 +470,17 @@ class AdminScraping(APIView):
         first_paragraph = soup.find('p')
         
         if first_paragraph:
-            return Response({"first_paragraph": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
+            return Response({"data": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
         
         first_image = soup.find('img', alt=True)
         
         if first_image:
-            return Response({"first_image_alt": first_image['alt']}, status=status.HTTP_200_OK)
+            return Response({"data": first_image['alt']}, status=status.HTTP_200_OK)
         
         h1_tag = soup.find('h1')
         
         if h1_tag:
-            return Response({"h1_tag_text": h1_tag.text.strip()}, status=status.HTTP_200_OK)
+            return Response({"data": h1_tag.text.strip()}, status=status.HTTP_200_OK)
         
         return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
        
