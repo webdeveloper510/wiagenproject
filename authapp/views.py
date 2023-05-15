@@ -164,7 +164,6 @@ class ClusterView(APIView):
 class TechnologiesView(APIView):
     model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
     model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    csv_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/multiclass_dataset.csv"
 
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -180,54 +179,72 @@ class TechnologiesView(APIView):
         return text
     
     def post(self, request):
-        data=pd.read_csv(self.csv_path)
-        total_cluster=(data["label"].unique())
-        print(total_cluster)
-        num_class=len(total_cluster)
-        
-        
-        # SET THE STEP FOR MODEL
+        service = QuestionAndAnswr.objects.all().order_by('id')
+        serializer = QuestionAndAnswrSerializer(service, many=True)
+        array=[]
+        for x in serializer.data:
+            topic_id=x["topic"]
+            question=self.clean_text(x["question"])
+            answer=x["answer"]
+            topicvalue=Topic.objects.filter(id=topic_id).values('Topic')
+            TopicName=(topicvalue[0]['Topic'])
+            data_dict={"Topic":TopicName,"question":question,"answer":answer}
+            array.append(data_dict)
+            
+        data=[dict['question'] for dict in array]
+      
         MAX_NB_WORDS = 1000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
         oov_token = "<OOV>"
         tokenizer = Tokenizer(num_words=MAX_NB_WORDS, oov_token = "<OOV>", lower=True)
-        tokenizer.fit_on_texts(data['question'].values)
+        tokenizer.fit_on_texts(data)
         word_index = tokenizer.word_index
         
-        user_input = request.POST.get("input")
-        cleaned_text =self.clean_text(user_input)
-        sequence= tokenizer.texts_to_sequences([cleaned_text])
-        new_input=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
-      
-      
-      
-        # Load a model
+        Y=[dict["Topic"] for dict in array] 
+        lbl_encoder = LabelEncoder()
+        lbl_encoder.fit(Y)
+        Label = lbl_encoder.transform(Y)
+        
+
+        # FIND THE TOTAL NUMBER OF CLASS
+        cluster=list(set(Y))
+        print(cluster)
+        num_class=len(list(set(Y)))
+        
+        
+        # ## TRAIN A NEURAL NETWORK
         json_file = open(self.model_path, 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
-        loaded_model.load_weights("/home/codenomad/Desktop/may_project/saved_model/classification_model_weights.h5")
-      
-      
-        pred = loaded_model.predict(new_input)
-        label=['Cricket','Technology','Mobile']
+        loaded_model.load_weights(self.model_weight_path)
+        
+        user_input=request.POST.get('input')
+        clean_user_input=self.clean_text(user_input)
+        new_input_tokenizer = tokenizer.texts_to_sequences([clean_user_input])
+        new_input = pad_sequences(new_input_tokenizer, maxlen=MAX_SEQUENCE_LENGTH)                    # input
+        pred =loaded_model.predict(new_input)
+        
+        label=['Cricket', 'Mobile', 'Technology']
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
-        # get the Answer
-        filter_data=data[data['label'] ==result]
-        get_all_questions=filter_data['question'].tolist()   
+        print('Result_-------------------------------------->>>>',result)
+        
+        # # get the Answer
+        filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
+        get_all_questions=[dict['question'] for dict in filter_data] 
         vectorizer = TfidfVectorizer()
         vectorizer.fit(get_all_questions)
         question_vectors = vectorizer.transform(get_all_questions)                                  # 2. all questions
 
-        input_vector = vectorizer.transform([cleaned_text])
+        input_vector = vectorizer.transform([clean_user_input])
         similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
         max_sim_index = np.argmax(similarity_scores)
         similarity_percentage = similarity_scores[max_sim_index] * 100
         print("Similarity Score",similarity_percentage)
         if (similarity_percentage)>=75:
-            answer = filter_data.iloc[max_sim_index]['answer']
+            answer = filter_data[max_sim_index]['answer']
             return Response({"Label Name":result,"Answer":answer})
         else:
             return Response({"Label Name":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})
@@ -431,21 +448,7 @@ class FootballScrapingView(APIView):
                     football_data.save()
             return Response({"message":"scrap data successfully","status":"200"})
 
-class QuestionandAnswerListView(APIView):
-        def get(self, request, format=None):
-            service = QuestionAndAnswr.objects.all().order_by('id')
-            serializer = QuestionAndAnswrSerializer(service, many=True)
-            array=[]
-            for x in serializer.data:
-               topic_id=x["topic"]
-               question=x["question"]
-               answer=x["answer"]
-               topicvalue=Topic.objects.filter(id=topic_id).values('Topic')
-               TopicName=(topicvalue[0]['Topic'])
-               data_dict={"Topic":TopicName,"question":question,"answer":answer}
-               array.append(data_dict)
-            print(array)   
-            return Response({"message":"success","code":"200","data":array})
+
        
 class AdminScraping(APIView):
     def post(self, request, format=None):

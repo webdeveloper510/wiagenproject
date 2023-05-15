@@ -16,5 +16,4 @@ urlpatterns = [
     path('footballscraping/',FootballScrapingView.as_view()),
     path('technologyscraping/',EmergingTechnologyView.as_view()),
     path('prediction/',TechnologiesView.as_view()),
-    path('listquestionandanswer/',QuestionandAnswerListView.as_view())
 ]
