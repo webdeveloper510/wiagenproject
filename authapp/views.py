@@ -164,7 +164,7 @@ class ClusterView(APIView):
 class TechnologiesView(APIView):
     model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
     model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-
+    
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
         BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
