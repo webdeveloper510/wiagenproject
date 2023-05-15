@@ -83,3 +83,12 @@ class QuestionAndAnswrSerializer(serializers.ModelSerializer):
            
     def create(self, validate_data):
         return QuestionAndAnswr.objects.create(**validate_data)
+    
+
+class User_LabelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= User_Label
+        fields = '__all__'
+           
+    def create(self, validate_data):
+        return User_Label.objects.create(**validate_data)

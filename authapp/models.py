@@ -146,3 +146,7 @@ class QuestionAndAnswr(models.Model):
     topic=models.ForeignKey(Topic,on_delete=models.CASCADE)
     question=models.TextField(max_length=1000)
     answer=models.TextField(max_length=1000)
+
+class User_Label(models.Model):
+    user_id=models.CharField(max_length=250,null=True,blank=True)
+    Label=models.CharField(max_length=250,null=True,blank=True)

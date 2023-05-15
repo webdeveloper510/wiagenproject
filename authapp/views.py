@@ -35,6 +35,7 @@ from sklearn.preprocessing import LabelEncoder
 from keras.preprocessing.text import Tokenizer
 import itertools
 import os
+from django.contrib.auth import login
 # path=os.path.abspath("src/examplefile.txt")
 
 
@@ -62,15 +63,23 @@ class UserRegistrationView(APIView):
 class UserLoginView(APIView):
     renderer_classes=[UserRenderer]
     def post(self,request,format=None):
-        email=request.data.get('email')
-        password=request.data.get('password')
-        user=authenticate(email=email,password=password)
-        user_data=User.objects.filter(email=email).values("firstname")
-        username=user_data[0]['firstname']
-        print(username)
-        if user is not None:
-              token= get_tokens_for_user(user)
-              return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_200_OK)
+        email = request.data.get('email')
+        password = request.data.get('password')
+        user = authenticate(email=email, password=password)
+        if not email:
+             return Response({"message":"email is required"},status=status.HTTP_400_BAD_REQUEST)
+        if not password:
+             return Response({"message":"password is required"},status=status.HTTP_400_BAD_REQUEST)
+        
+        if not User.objects.filter(email=email).exists(): 
+            return Response({"message":"invalid email address"},status=status.HTTP_400_BAD_REQUEST)
+        
+        if user:
+            login(request, user)
+            token=get_tokens_for_user(user)
+            user_data=User.objects.filter(email=email).values("firstname")
+            username=user_data[0]['firstname']
+            return Response({'message':'Login successful',"username":username,"token":token},status=status.HTTP_200_OK)
         else:
               return Response({'message':'Please Enter Valid email or password'},status=status.HTTP_400_BAD_REQUEST)
 
@@ -179,6 +188,9 @@ class TechnologiesView(APIView):
         return text
     
     def post(self, request):
+        user_id=request.data.get('user_id')
+        if not user_id:
+            return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
         service = QuestionAndAnswr.objects.all().order_by('id')
         serializer = QuestionAndAnswrSerializer(service, many=True)
         array=[]
@@ -219,6 +231,7 @@ class TechnologiesView(APIView):
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
         print('Result_-------------------------------------->>>>',result)
+        userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
         # # get the Answer
         filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
         get_all_questions=[dict['question'] for dict in filter_data] 
@@ -232,9 +245,9 @@ class TechnologiesView(APIView):
         print("Similarity Score",similarity_percentage)
         if (similarity_percentage)>=75:
             answer = filter_data[max_sim_index]['answer']
-            return Response({"Label Name":result,"Answer":answer})
+            return Response({"Label":result,"Answer":answer})
         else:
-            return Response({"Label Name":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})
+            return Response({"Label ":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})
 
 
 class CricketScrapingView(APIView):
@@ -451,17 +464,38 @@ class AdminScraping(APIView):
         first_paragraph = soup.find('p')
         
         if first_paragraph:
-            return Response({"first_paragraph": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
+            return Response({"data": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
         
         first_image = soup.find('img', alt=True)
         
         if first_image:
-            return Response({"first_image_alt": first_image['alt']}, status=status.HTTP_200_OK)
+            return Response({"data": first_image['alt']}, status=status.HTTP_200_OK)
         
         h1_tag = soup.find('h1')
         
         if h1_tag:
-            return Response({"h1_tag_text": h1_tag.text.strip()}, status=status.HTTP_200_OK)
+            return Response({"data": h1_tag.text.strip()}, status=status.HTTP_200_OK)
         
         return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
        
+
+class GetLabelByUser_id(APIView):
+    def post(self, request, format=None):
+        user_id=request.data.get('user_id')
+        if not user_id:
+            return Response({'message':'user_id Required'},status=status.HTTP_400_BAD_REQUEST)
+        if not User_Label.objects.filter(user_id=user_id).exists():
+            return Response({'message':'user_id does not exist'},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            user_label= User_Label.objects.all().order_by('id')
+            serializer = User_LabelSerializer(user_label, many=True)
+            array=[]
+            for x in serializer.data:
+                user_id=(x['user_id'])
+                Label= (x['Label'])
+                if user_id==user_id:
+                    dict_data={"label":Label}
+                    array.append(dict_data)
+                    print(array)
+        return Response({'message':'success','data':array},status=status.HTTP_200_OK)
+    
