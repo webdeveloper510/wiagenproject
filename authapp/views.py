@@ -190,9 +190,8 @@ class TechnologiesView(APIView):
             TopicName=(topicvalue[0]['Topic'])
             data_dict={"Topic":TopicName,"question":question,"answer":answer}
             array.append(data_dict)
-            
         data=[dict['question'] for dict in array]
-      
+        # Tokenizer data.
         MAX_NB_WORDS = 1000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
@@ -200,44 +199,32 @@ class TechnologiesView(APIView):
         tokenizer = Tokenizer(num_words=MAX_NB_WORDS, oov_token = "<OOV>", lower=True)
         tokenizer.fit_on_texts(data)
         word_index = tokenizer.word_index
-        
-        Y=[dict["Topic"] for dict in array] 
-        lbl_encoder = LabelEncoder()
-        lbl_encoder.fit(Y)
-        Label = lbl_encoder.transform(Y)
-        
-
         # FIND THE TOTAL NUMBER OF CLASS
-        cluster=list(set(Y))
-        print(cluster)
-        num_class=len(list(set(Y)))
-        
-        
-        # ## TRAIN A NEURAL NETWORK
+        cluster=list(set(dict['Topic'] for dict in array))
+        num_class=len(list(set(cluster)))
+        #Load Saved Model.
         json_file = open(self.model_path, 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(self.model_weight_path)
-        
+        # Take user input
         user_input=request.POST.get('input')
         clean_user_input=self.clean_text(user_input)
         new_input_tokenizer = tokenizer.texts_to_sequences([clean_user_input])
-        new_input = pad_sequences(new_input_tokenizer, maxlen=MAX_SEQUENCE_LENGTH)                    # input
+        new_input = pad_sequences(new_input_tokenizer, maxlen=MAX_SEQUENCE_LENGTH) 
+        # Make Prediction
         pred =loaded_model.predict(new_input)
-        
         label=['Cricket', 'Mobile', 'Technology']
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
         print('Result_-------------------------------------->>>>',result)
-        
         # # get the Answer
         filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
         get_all_questions=[dict['question'] for dict in filter_data] 
         vectorizer = TfidfVectorizer()
         vectorizer.fit(get_all_questions)
         question_vectors = vectorizer.transform(get_all_questions)                                  # 2. all questions
-
         input_vector = vectorizer.transform([clean_user_input])
         similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
         max_sim_index = np.argmax(similarity_scores)
