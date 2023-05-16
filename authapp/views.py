@@ -475,27 +475,37 @@ class AdminScraping(APIView):
         
         if h1_tag:
             return Response({"data": h1_tag.text.strip()}, status=status.HTTP_200_OK)
-        
-        return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+         return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
        
 
-class GetLabelByUser_id(APIView):
-    def post(self, request, format=None):
-        user_id=request.data.get('user_id')
-        if not user_id:
-            return Response({'message':'user_id Required'},status=status.HTTP_400_BAD_REQUEST)
-        if not User_Label.objects.filter(user_id=user_id).exists():
-            return Response({'message':'user_id does not exist'},status=status.HTTP_400_BAD_REQUEST)
-        else:
-            user_label= User_Label.objects.all().order_by('id')
-            serializer = User_LabelSerializer(user_label, many=True)
-            array=[]
-            for x in serializer.data:
-                user_id=(x['user_id'])
-                Label= (x['Label'])
-                if user_id==user_id:
-                    dict_data={"label":Label}
-                    array.append(dict_data)
-                    print(array)
-        return Response({'message':'success','data':array},status=status.HTTP_200_OK)
+# class GetLabelByUser_id(APIView):
+#     def post(self, request, format=None):
+#         user_id=request.data.get('user_id')
+#         if not user_id:
+#             return Response({'message':'user_id Required'},status=status.HTTP_400_BAD_REQUEST)
+#         if not User_Label.objects.filter(user_id=user_id).exists():
+#             return Response({'message':'user_id does not exist'},status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             user_label= User_Label.objects.all().order_by('id')
+#             serializer = User_LabelSerializer(user_label, many=True)
+#             array=[]
+#             for x in serializer.data:
+#                 user_id=(x['user_id'])
+#                 Label= (x['Label'])
+#                 if user_id==user_id:
+#                     dict_data={"label":Label}
+#                     array.append(dict_data)
+#                     print(array)
+#         return Response({'message':'success','data':array},status=status.HTTP_200_OK)
     
+class GetLabelByUser_id(APIView):
+    def get(self, request, user_id):
+    
+            labels = User_Label.objects.filter(user_id=user_id).values_list('Label', flat=True)
+
+            if labels:
+                return Response({'labels': list(labels)})
+            
+            else:
+              return Response({'error': 'User Label does not exist'})
