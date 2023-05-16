@@ -36,6 +36,10 @@ from keras.preprocessing.text import Tokenizer
 import itertools
 import os
 from django.contrib.auth import login
+import spacy
+import nltk
+nlp = spacy.load("en_core_web_sm")
+nltk.download('stopwords')
 # path=os.path.abspath("src/examplefile.txt")
 
 
@@ -171,8 +175,8 @@ class ClusterView(APIView):
         return Response({"message":df1})
     
 class TechnologiesView(APIView):
-    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/home/deepika/Desktop/Deepika/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/deepika/Desktop/Deepika/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -186,7 +190,18 @@ class TechnologiesView(APIView):
         text=text.replace('x','')
         text=' '.join(word for word in text.split() if word not in STOPWORDS)
         return text
-    
+    def chatgpt(self,input):
+        response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=f"Auto Response Generator \n\nUser: {input} \n\nAI:\n",
+        temperature=1,
+        max_tokens=300,
+        top_p=0,
+        frequency_penalty=1,
+        presence_penalty=1
+        )
+        output= response.choices[0].text
+        return output
     def post(self, request):
         user_id=request.data.get('user_id')
         if not user_id:
@@ -231,7 +246,6 @@ class TechnologiesView(APIView):
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
         print('Result_-------------------------------------->>>>',result)
-        userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
         # # get the Answer
         filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
         get_all_questions=[dict['question'] for dict in filter_data] 
@@ -243,11 +257,23 @@ class TechnologiesView(APIView):
         max_sim_index = np.argmax(similarity_scores)
         similarity_percentage = similarity_scores[max_sim_index] * 100
         print("Similarity Score",similarity_percentage)
-        if (similarity_percentage)>=75:
+        if (similarity_percentage)>=70:
             answer = filter_data[max_sim_index]['answer']
+            userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
             return Response({"Label":result,"Answer":answer})
         else:
-            return Response({"Label ":"No Database Related to This Question","Answer":"Your Question has not Related any database question. Sorry , I have no Answer of This Question"})
+            input=user_input
+            doc = nlp(input)
+            # Merge consecutive NOUN tokens
+            merged_text = []
+            for token in doc:
+                if token.pos_ == "NOUN":
+                    merged_text.append(token.text.title())
+            sentence = " ".join(merged_text)
+            label=sentence
+            userLabel_data=User_Label.objects.create(user_id=user_id,Label=label)
+            response=self.chatgpt(input)
+            return Response({"Label":label,"Result ":response})
 
 
 class CricketScrapingView(APIView):
