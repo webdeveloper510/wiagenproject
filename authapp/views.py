@@ -40,11 +40,7 @@ import spacy
 import nltk
 nlp = spacy.load("en_core_web_sm")
 nltk.download('stopwords')
-# path=os.path.abspath("src/examplefile.txt")
-
-
 stemmer=PorterStemmer()
-import nltk
 openai.api_key=settings.API_KEY
 
 #Creating tokens manually
@@ -175,8 +171,8 @@ class ClusterView(APIView):
         return Response({"message":df1})
     
 class TechnologiesView(APIView):
-    model_path="/home/deepika/Desktop/Deepika/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/deepika/Desktop/Deepika/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -193,7 +189,7 @@ class TechnologiesView(APIView):
     def chatgpt(self,input):
         response = openai.Completion.create(
         model="text-davinci-003",
-        prompt=f"Auto Response Generator \n\nUser: {input} \n\nAI:\n",
+        prompt=f"Auto Response Generator \n\nUser {input} \n\nAI:",
         temperature=1,
         max_tokens=300,
         top_p=0,
@@ -266,9 +262,10 @@ class TechnologiesView(APIView):
             doc = nlp(input)
             # Merge consecutive NOUN tokens
             merged_text = []
-            for token in doc:
-                if token.pos_ == "NOUN":
-                    merged_text.append(token.text.title())
+            for word in doc.ents:
+                print('=================================>>>>>',word.text,word.label_)
+                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON":
+                    merged_text.append(word.text.title())
             sentence = " ".join(merged_text)
             label=sentence
             userLabel_data=User_Label.objects.create(user_id=user_id,Label=label)
