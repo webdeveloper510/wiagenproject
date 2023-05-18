@@ -35,11 +35,13 @@ from sklearn.preprocessing import LabelEncoder
 from keras.preprocessing.text import Tokenizer
 import itertools
 import os
+import PyPDF2 as pdf
+from transformers import T5Config, T5ForConditionalGeneration, T5Tokenizer
+import re 
+import pdfplumber
 from django.contrib.auth import login
 import spacy
 import nltk
-nlp = spacy.load("en_core_web_sm")
-nltk.download('stopwords')
 stemmer=PorterStemmer()
 openai.api_key=settings.API_KEY
 
@@ -478,28 +480,17 @@ class AdminScraping(APIView):
         url = request.data.get("url")
         if not url:
             return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
-        
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-        
-        response = requests.get(url,headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        first_paragraph = soup.find('p')
-        
-        if first_paragraph:
-            return Response({"data": first_paragraph.text.strip()}, status=status.HTTP_200_OK)
-        
-        first_image = soup.find('img', alt=True)
-        
-        if first_image:
-            return Response({"data": first_image['alt']}, status=status.HTTP_200_OK)
-        
-        h1_tag = soup.find('h1')
-        
-        if h1_tag:
-            return Response({"data": h1_tag.text.strip()}, status=status.HTTP_200_OK)
-        else:
-         return Response({"message": "No data found."}, status=status.HTTP_404_NOT_FOUND)
+        else :
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+            
+            response = requests.get(url,headers=headers)
+            soup = BeautifulSoup(response.text, "html.parser")
+            all_text = soup.get_text()
+            if all_text=="":
+                return Response({"message":"No Data Found"},status=status.HTTP_200_OK)
+            else:
+                all_text = re.sub(r'\s+', ' ', all_text).strip()
+                return Response({"data":all_text},status=status.HTTP_200_OK)
        
 
 # class GetLabelByUser_id(APIView):
@@ -532,3 +523,59 @@ class GetLabelByUser_id(APIView):
             
             else:
               return Response({'error': 'User Label does not exist'})
+          
+import sentencepiece
+       
+class PDFView(APIView):
+    def run_model(self,input_strings, tokenizer ,model,**generator_args):
+        input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
+        res = model.generate(input_ids, **generator_args)
+        output = tokenizer.batch_decode(res, skip_special_tokens=True)
+        return output
+
+    def pdfreader_func(self,path):
+        file = open(path, 'rb')
+        doc = pdf.PdfReader(file)
+        if doc.is_encrypted:
+            return  "PDF is Encrypted"
+        page_number = len(doc.pages)
+        extracted_text = ''
+        for i in range(page_number):
+            current_page = doc.pages[i]
+            text = current_page.extract_text()
+            extracted_text += text 
+        return extracted_text
+
+
+    def split_text_into_qa_pairs(self, text):
+        if not isinstance(text, str):
+            raise ValueError("Input 'text' must be a string.")
+        qa_pairs = []
+        rules = re.split(r'\n(?=\d+)', text)
+        for rule in rules:
+            rule = rule.strip()
+            if not rule:
+                continue
+            rule_lines = rule.split('\n')
+            question = rule_lines[0].strip().lstrip('Ans:')
+            answer = ' '.join(rule_lines[1:]).strip().title()
+            if question and answer:
+                qa_pairs.append((question, answer))
+        return qa_pairs
+
+
+    def post(self,request):
+        pdf_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/Football Rules.pdf"
+        model_name = "allenai/t5-small-squad2-question-generation"
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+        extracted_text = self.pdfreader_func(pdf_path)
+        
+
+        qa_pairs = self.split_text_into_qa_pairs(extracted_text)
+        questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
+        generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
+        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+        return Response({"message":aligned_qa_pairs})
+
+
