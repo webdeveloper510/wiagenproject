@@ -92,3 +92,11 @@ class User_LabelSerializer(serializers.ModelSerializer):
            
     def create(self, validate_data):
         return User_Label.objects.create(**validate_data)
+    
+class User_PDFSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= User_PDF
+        fields = '__all__'
+           
+    def create(self, validate_data):
+        return User_PDF.objects.create(**validate_data)

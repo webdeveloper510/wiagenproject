@@ -1,6 +1,8 @@
 from django.urls import path
 from authapp.views import *
 from authapp import views
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 urlpatterns = [
@@ -17,5 +19,10 @@ urlpatterns = [
     path('technologyscraping/',EmergingTechnologyView.as_view()),
     path('prediction/',TechnologiesView.as_view()),
     path('label/<int:user_id>',GetLabelByUser_id.as_view()),
-    path('pdfreader/',PDFView.as_view()),
+    path('pdfresult/',UploadPDFViewSet.as_view()),
+
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

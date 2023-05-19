@@ -149,7 +149,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -188,5 +187,13 @@ CORS_ALLOWED_ORIGINS = [
 
 ]
 
+STATICFILES_DIRS = [
+    BASE_DIR,"static"
+]
+
+STATIC_URL = '/static/'
+MEDIA_ROOT = BASE_DIR /"static/media"
+MEDIA_URL = "/media/"
+BASE_URL='http://127.0.0.1:8000/static'
 
 API_KEY="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"   

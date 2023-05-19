@@ -43,7 +43,12 @@ from django.contrib.auth import login
 import spacy
 import nltk
 stemmer=PorterStemmer()
+import sentencepiece
 openai.api_key=settings.API_KEY
+nlp = spacy.load('en_core_web_sm')
+from urllib.parse import urljoin
+url="http://127.0.0.1:8000/static/media/"
+
 
 #Creating tokens manually
 def get_tokens_for_user(user):
@@ -272,7 +277,7 @@ class TechnologiesView(APIView):
             label=sentence
             userLabel_data=User_Label.objects.create(user_id=user_id,Label=label)
             response=self.chatgpt(input)
-            return Response({"Label":label,"Result ":response})
+            return Response({"Label":label,"Answer":response})
 
 
 class CricketScrapingView(APIView):
@@ -473,8 +478,6 @@ class FootballScrapingView(APIView):
                     football_data.save()
             return Response({"message":"scrap data successfully","status":"200"})
 
-
-       
 class AdminScraping(APIView):
     def post(self, request, format=None):
         url = request.data.get("url")
@@ -523,16 +526,13 @@ class GetLabelByUser_id(APIView):
             
             else:
               return Response({'error': 'User Label does not exist'})
-          
-import sentencepiece
-       
-class PDFView(APIView):
+
+class UploadPDFViewSet(APIView):
     def run_model(self,input_strings, tokenizer ,model,**generator_args):
         input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
         res = model.generate(input_ids, **generator_args)
         output = tokenizer.batch_decode(res, skip_special_tokens=True)
         return output
-
     def pdfreader_func(self,path):
         file = open(path, 'rb')
         doc = pdf.PdfReader(file)
@@ -545,8 +545,6 @@ class PDFView(APIView):
             text = current_page.extract_text()
             extracted_text += text 
         return extracted_text
-
-
     def split_text_into_qa_pairs(self, text):
         if not isinstance(text, str):
             raise ValueError("Input 'text' must be a string.")
@@ -563,19 +561,21 @@ class PDFView(APIView):
                 qa_pairs.append((question, answer))
         return qa_pairs
 
-
-    def post(self,request):
-        pdf_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/csv_dataset/Football Rules.pdf"
+    def post(self, request, format=None):
+        pdffile=  request.FILES.get("pdf")
+        pdffile_data=User_PDF.objects.create(pdf=pdffile)
+        serializer=User_PDFSerializer(data=pdffile_data)
+        pdffile_data.save()
+        pdffile_data.pdf.name
+        print('=======================================>>>>>>>>>>>>',pdffile_data.pdf.name)
+        full_url = urljoin(url, pdffile_data.pdf.name)
+        pdf_path = pdffile_data.pdf.path
         model_name = "allenai/t5-small-squad2-question-generation"
         tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(model_name)
         extracted_text = self.pdfreader_func(pdf_path)
-        
-
         qa_pairs = self.split_text_into_qa_pairs(extracted_text)
         questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
         generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
         return Response({"message":aligned_qa_pairs})
-
-

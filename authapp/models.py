@@ -150,3 +150,6 @@ class QuestionAndAnswr(models.Model):
 class User_Label(models.Model):
     user_id=models.CharField(max_length=250,null=True,blank=True)
     Label=models.CharField(max_length=250,null=True,blank=True)
+    
+class User_PDF(models.Model):
+    pdf=models.FileField(upload_to="user_pdf/",blank=True,null=True)
