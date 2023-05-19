@@ -542,28 +542,27 @@ class PDFReaderView(APIView):
                 qa_pairs.append((question, answer))
         return qa_pairs
 
-
-    # def post(self, request ,format=None):
-    #     # pdf_path = pdffile_data.pdf.path
-    #     # print('-------------------->>>>',pdf_path)
-    #     model_name = "allenai/t5-small-squad2-question-generation"
-    #     tokenizer = T5Tokenizer.from_pretrained(model_name)
-    #     model = T5ForConditionalGeneration.from_pretrained(model_name)
-    #     extracted_text = self.pdfreader_func(pdf_path)
-    #     qa_pairs = self.split_text_into_qa_pairs(extracted_text)
-    #     questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
-    #     generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-    #     aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
-    #     return Response({"message":aligned_qa_pairs})
+    def get(self, request ,format=None):
+        pdf_path =self.request.GET.get('input')
+        model_name = "allenai/t5-small-squad2-question-generation"
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+        extracted_text = self.pdfreader_func(pdf_path)
+        qa_pairs = self.split_text_into_qa_pairs(extracted_text)
+        questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
+        generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
+        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+        return Response({"message":aligned_qa_pairs})
     
 class UploadPDFViewSet(APIView):
-    def post(self, request, format=None):
+    def post(self,request, format=None):
         pdffile=  request.FILES.get("pdf")
         pdffile_data=User_PDF.objects.create(pdf=pdffile)
         serializer=User_PDFSerializer(data=pdffile_data)
         pdffile_data.save()
-        pdffile_data.pdf.name
+        pdf_input=pdffile_data.pdf.path
         full_url = urljoin(url, pdffile_data.pdf.name)
+        PDFReaderView(pdf_input)
         return Response({"URL":full_url})
 
 
