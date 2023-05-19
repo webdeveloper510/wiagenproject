@@ -20,7 +20,7 @@ urlpatterns = [
     path('prediction/',TechnologiesView.as_view()),
     path('label/<int:user_id>',GetLabelByUser_id.as_view()),
     path('pdfresult/',PDFReaderView.as_view()),
-    path('upload/',UploadPDFViewSet.as_view()),
+    # path('upload/',UploadPDFViewSet.as_view()),
 ]
 
 if settings.DEBUG:
