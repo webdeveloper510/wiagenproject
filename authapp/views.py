@@ -495,27 +495,7 @@ class AdminScraping(APIView):
                 all_text = re.sub(r'\s+', ' ', all_text).strip()
                 return Response({"data":all_text},status=status.HTTP_200_OK)
        
-
-# class GetLabelByUser_id(APIView):
-#     def post(self, request, format=None):
-#         user_id=request.data.get('user_id')
-#         if not user_id:
-#             return Response({'message':'user_id Required'},status=status.HTTP_400_BAD_REQUEST)
-#         if not User_Label.objects.filter(user_id=user_id).exists():
-#             return Response({'message':'user_id does not exist'},status=status.HTTP_400_BAD_REQUEST)
-#         else:
-#             user_label= User_Label.objects.all().order_by('id')
-#             serializer = User_LabelSerializer(user_label, many=True)
-#             array=[]
-#             for x in serializer.data:
-#                 user_id=(x['user_id'])
-#                 Label= (x['Label'])
-#                 if user_id==user_id:
-#                     dict_data={"label":Label}
-#                     array.append(dict_data)
-#                     print(array)
-#         return Response({'message':'success','data':array},status=status.HTTP_200_OK)
-    
+   
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
     
@@ -527,7 +507,7 @@ class GetLabelByUser_id(APIView):
             else:
               return Response({'error': 'User Label does not exist'})
 
-class UploadPDFViewSet(APIView):
+class PDFReaderView(APIView):
     def run_model(self,input_strings, tokenizer ,model,**generator_args):
         input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
         res = model.generate(input_ids, **generator_args)
@@ -545,6 +525,7 @@ class UploadPDFViewSet(APIView):
             text = current_page.extract_text()
             extracted_text += text 
         return extracted_text
+    
     def split_text_into_qa_pairs(self, text):
         if not isinstance(text, str):
             raise ValueError("Input 'text' must be a string.")
@@ -561,21 +542,29 @@ class UploadPDFViewSet(APIView):
                 qa_pairs.append((question, answer))
         return qa_pairs
 
+
+    # def post(self, request ,format=None):
+    #     # pdf_path = pdffile_data.pdf.path
+    #     # print('-------------------->>>>',pdf_path)
+    #     model_name = "allenai/t5-small-squad2-question-generation"
+    #     tokenizer = T5Tokenizer.from_pretrained(model_name)
+    #     model = T5ForConditionalGeneration.from_pretrained(model_name)
+    #     extracted_text = self.pdfreader_func(pdf_path)
+    #     qa_pairs = self.split_text_into_qa_pairs(extracted_text)
+    #     questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
+    #     generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
+    #     aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+    #     return Response({"message":aligned_qa_pairs})
+    
+class UploadPDFViewSet(APIView):
     def post(self, request, format=None):
         pdffile=  request.FILES.get("pdf")
         pdffile_data=User_PDF.objects.create(pdf=pdffile)
         serializer=User_PDFSerializer(data=pdffile_data)
         pdffile_data.save()
         pdffile_data.pdf.name
-        print('=======================================>>>>>>>>>>>>',pdffile_data.pdf.name)
         full_url = urljoin(url, pdffile_data.pdf.name)
-        pdf_path = pdffile_data.pdf.path
-        model_name = "allenai/t5-small-squad2-question-generation"
-        tokenizer = T5Tokenizer.from_pretrained(model_name)
-        model = T5ForConditionalGeneration.from_pretrained(model_name)
-        extracted_text = self.pdfreader_func(pdf_path)
-        qa_pairs = self.split_text_into_qa_pairs(extracted_text)
-        questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
-        generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
-        return Response({"message":aligned_qa_pairs})
+        return Response({"URL":full_url})
+
+
+
