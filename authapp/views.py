@@ -563,4 +563,43 @@ class PDFReaderView(APIView):
         # return Response({"URL":full_url})
 
 
+class URLQuestionAnswerView(APIView):
+    def run_model(self,input_strings,tokenizer,model,**generator_args):
+        input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
+        res = model.generate(input_ids, **generator_args)
+        output = tokenizer.batch_decode(res, skip_special_tokens=True)
+        return output
 
+    def clean_text(self,text):
+        cleaned_text = re.sub(r'\s+', ' ', text)
+        cleaned_text = re.sub(r'[^\w\s]', '', cleaned_text)
+        return cleaned_text.strip()
+
+    def split_text_into_qa_pairs(self,text):
+        if not isinstance(text, str):
+            raise ValueError("Input 'text' must be a string.")
+        qa_pairs = []
+        rules = re.split(r'\d+\s*', text)
+        for rule in rules[1:]:
+            rule = rule.strip()
+            
+            if not rule:
+                continue
+            rule_lines = rule.split('\n')
+            question = rule_lines[0].strip().lstrip('Ans:')
+            answer = ' '.join(rule_lines).strip().title()
+            if question and answer:
+                qa_pairs.append((question, answer))
+        return qa_pairs
+    
+    def post(self, request , format=None):
+        url_text_input=request.POST.get("Input")
+        model_name = "allenai/t5-small-squad2-question-generation"
+        tokenizer = T5Tokenizer.from_pretrained(model_name)
+        model = T5ForConditionalGeneration.from_pretrained(model_name)
+        extracted_data =self.clean_text(url_text_input)
+        qa_pairs = self.split_text_into_qa_pairs(extracted_data)
+        questions =self.run_model([pair[1] for pair in qa_pairs],tokenizer,model, max_new_tokens=256)
+        generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
+        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+        return Response({"message":aligned_qa_pairs})
