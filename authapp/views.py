@@ -47,6 +47,7 @@ import sentencepiece
 openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
+
 url="http://127.0.0.1:8000/static/media/"
 
 
@@ -263,7 +264,13 @@ class TechnologiesView(APIView):
         if (similarity_percentage)>=70:
             answer = filter_data[max_sim_index]['answer']
             userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
-            return Response({"Label":result,"Answer":answer})
+            response_data = {
+                "Label": result,
+                "Answer": answer,
+                "AnswerSource":"[Database Response]"}
+        # return Response({"Label":result,"Answer":answer})
+            return Response(response_data)
+
         else:
             input=user_input
             doc = nlp(input)
@@ -271,13 +278,19 @@ class TechnologiesView(APIView):
             merged_text = []
             for word in doc.ents:
                 print('=================================>>>>>',word.text,word.label_)
-                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON":
+                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or 'MONEY' or 'ORDINAL' or 'PRODUCT':
                     merged_text.append(word.text.title())
             sentence = " ".join(merged_text)
             label=sentence
             userLabel_data=User_Label.objects.create(user_id=user_id,Label=label)
             response=self.chatgpt(input)
-            return Response({"Label":label,"Answer":response})
+            response_data = {
+                "Label": label,
+                "Answer": response,
+                "AnswerSource":"[Chatgpt Response]"}
+            return Response(response_data)
+
+            # return Response({"Label":label,"Answer":response})
 
 
 class CricketScrapingView(APIView):
