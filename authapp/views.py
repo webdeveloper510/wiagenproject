@@ -590,13 +590,15 @@ class PDFReaderView(APIView):
 
     def post(self,request, format=None):
         pdffile=  request.FILES.get("pdf")
-        pdffile_data=User_PDF.objects.create(pdf=pdffile)
+        pdffile_name = pdffile.name
+        pdffile_data=User_PDF.objects.create(pdf=pdffile,pdf_filename=pdffile_name)
         serializer=User_PDFSerializer(data=pdffile_data)
         pdffile_data.save()
+        print("---->",pdffile_name)
         full_url = urljoin(url, pdffile_data.pdf.name)
-        print('-------------------------->>>>>',full_url)
+        # print('-------------------------->>>>>',full_url)
         pdf_path=pdffile_data.pdf.path
-        print('-------------------------->>>>>',pdf_path)
+        # print('-------------------------->>>>>',pdffile_name)
         model_name = "allenai/t5-small-squad2-question-generation"
         tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -609,7 +611,7 @@ class PDFReaderView(APIView):
 
 class GetAllPdf(APIView):
     def get(self, request, format=None):
-            pdf_list = User_PDF.objects.all().values('pdf').order_by('-id')
+            pdf_list = User_PDF.objects.all().values('pdf_filename').order_by('-id')
             if pdf_list:
                 return Response({'labels': list(pdf_list)})
             else:

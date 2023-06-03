@@ -153,6 +153,7 @@ class User_Label(models.Model):
     
 class User_PDF(models.Model):
     pdf=models.FileField(upload_to="user_pdf/",blank=True,null=True)
+    pdf_filename=models.CharField(max_length=200,blank=True,null=True)
     
 class UrlTable(models.Model):
     url=models.CharField(max_length=200,blank=True,null=True)
