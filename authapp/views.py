@@ -526,7 +526,7 @@ class AdminScraping(APIView):
             return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
         else :
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-            
+            url_data=UrlTable.objects.create(url=url)
             response = requests.get(url,headers=headers)
             soup = BeautifulSoup(response.text, "html.parser")
             all_text = soup.get_text()
@@ -546,7 +546,8 @@ class AdminScraping(APIView):
     
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
-            labels = User_Label.objects.filter(user_id=user_id).values_list('Label', flat=True)
+            labels = User_Label.objects.filter(user_id=user_id).values_list('Label', flat=True).order_by("-id")
+            print('------------------------->>>>',labels)
             if labels:
                 return Response({'labels': list(labels)})
             else:
@@ -606,3 +607,18 @@ class PDFReaderView(APIView):
         aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
         return Response({"message":aligned_qa_pairs})
 
+class GetAllPdf(APIView):
+    def get(self, request, format=None):
+            pdf_list = User_PDF.objects.all().values('pdf').order_by('-id')
+            if pdf_list:
+                return Response({'labels': list(pdf_list)})
+            else:
+                return Response({'data':"Pdf Does Not Exist"})
+
+class GetALLUrls(APIView):
+    def get(self, request, format=None):
+            url_list = UrlTable.objects.all().values('url').order_by('-id')
+            if url_list:
+                return Response({'labels': list(url_list)})
+            else:
+                return Response({'data':"Url Does Not Found"})
