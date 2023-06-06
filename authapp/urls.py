@@ -22,6 +22,7 @@ urlpatterns = [
     path('pdfresult/',PDFReaderView.as_view()),
     path('pdfdata/',GetAllPdf.as_view()),
     path('urldata/',GetALLUrls.as_view()),
+    path('SaveData/',SaveQuestionAnswer.as_view()),
 ]
 
 

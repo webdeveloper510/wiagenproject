@@ -199,7 +199,7 @@ class TechnologiesView(APIView):
         model="text-davinci-003",
         prompt=f"Auto Response Generator \n\nUser {input} \n\nAI:",
         temperature=1,
-        max_tokens=300,
+        max_tokens=1000,
         top_p=0,
         frequency_penalty=1,
         presence_penalty=1
@@ -249,7 +249,6 @@ class TechnologiesView(APIView):
         label=['Cricket', 'Mobile', 'Technology']
         databasew_match=pred, label[np.argmax(pred)]
         result=databasew_match[1]
-        print('Result_-------------------------------------->>>>',result)
         # # get the Answer
         filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
         get_all_questions=[dict['question'] for dict in filter_data] 
@@ -260,7 +259,6 @@ class TechnologiesView(APIView):
         similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
         max_sim_index = np.argmax(similarity_scores)
         similarity_percentage = similarity_scores[max_sim_index] * 100
-        print("Similarity Score",similarity_percentage)
         if (similarity_percentage)>=70:
             answer = filter_data[max_sim_index]['answer']
             userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
@@ -272,13 +270,17 @@ class TechnologiesView(APIView):
             return Response(response_data)
 
         else:
-            input=user_input
+            input=user_input.title()
+            print('input-------------------------------------->>>>',input)
             doc = nlp(input)
+            print('doc----------------------->>>>>',doc)
             # Merge consecutive NOUN tokens
             merged_text = []
             for word in doc.ents:
-                print('=================================>>>>>',word.text,word.label_)
-                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or 'MONEY' or 'ORDINAL' or 'PRODUCT':
+                print(word)
+                print('-------------------->>',word.text)
+                print('Label =================================>>>>>',word.text,word.label_)
+                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or 'MONEY' or 'ORDINAL' or 'PRODUCT' or 'NORP' or 'FAC' or 'EVENT' or 'WORK_OF_ART'or'LAW' or 'LANGUAGE' or "PERCENT" or 'QUANTITY' or 'CARDINALS':
                     merged_text.append(word.text.title())
             sentence = " ".join(merged_text)
             label=sentence
@@ -541,8 +543,34 @@ class AdminScraping(APIView):
                 qa_pairs = self.split_text_into_qa_pairs(extracted_data)
                 questions =self.run_model([pair[1] for pair in qa_pairs],tokenizer,model, max_new_tokens=256)
                 generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-                aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
-                return Response({"message":aligned_qa_pairs})
+                response_data = {"QA_Pairs": []}
+                for i, (question, answer) in enumerate(generated_qa_pairs):
+                    doc = nlp(question.title())
+                    merged_text = []
+                    label_found = False  
+                    for word in doc.ents:
+                        if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
+                            merged_text.append(word.text.title())
+                            label_found=True
+                    label = " ".join(merged_text)
+                    if not label_found or label.strip() == "":
+                        alternative_label=[]
+                        for token in doc:
+                            if token.pos_ == "PROPN":
+                                alternative_label.append(token.text.title())
+                            if token.pos_ == "NNP":
+                                alternative_label.append(token.text.title())
+                            if token.pos_ == "VERB":
+                                alternative_label.append(token.text.title())
+                        if alternative_label:
+                            label = " ".join(alternative_label)
+                    else:
+                        label="No Label Found"
+                    response_data["QA_Pairs"].append({
+                        "Question": question.strip(),
+                        "Answer": answer.strip(),
+                        "Label": label.strip()})
+                return Response(response_data)
     
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
@@ -587,7 +615,6 @@ class PDFReaderView(APIView):
             if question and answer:
                 qa_pairs.append((question, answer))
         return qa_pairs
-
     def post(self,request, format=None):
         pdffile=  request.FILES.get("pdf")
         pdffile_name = pdffile.name
@@ -596,9 +623,7 @@ class PDFReaderView(APIView):
         pdffile_data.save()
         print("---->",pdffile_name)
         full_url = urljoin(url, pdffile_data.pdf.name)
-        # print('-------------------------->>>>>',full_url)
         pdf_path=pdffile_data.pdf.path
-        # print('-------------------------->>>>>',pdffile_name)
         model_name = "allenai/t5-small-squad2-question-generation"
         tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -606,9 +631,37 @@ class PDFReaderView(APIView):
         qa_pairs = self.split_text_into_qa_pairs(extracted_text)
         questions =self.run_model([pair[1] for pair in qa_pairs], tokenizer,model,max_new_tokens=256)
         generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}", f"Ans: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
-        return Response({"message":aligned_qa_pairs})
-
+        aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
+        response_data = {"QA_Pairs": []}
+        for i, (question, answer) in enumerate(generated_qa_pairs):
+            doc = nlp(question.title())
+            merged_text = []
+            label_found = False  
+            for word in doc.ents:
+                if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
+                    merged_text.append(word.text.title())
+                    label_found=True
+            label = " ".join(merged_text)
+            if not label_found or label.strip() == "":
+                alternative_label=[]
+                for token in doc:
+                    if token.pos_ == "PROPN":
+                        alternative_label.append(token.text.title())
+                    if token.pos_ == "NNP":
+                        alternative_label.append(token.text.title())
+                    if token.pos_ == "VERB":
+                        alternative_label.append(token.text.title())
+                    
+                if alternative_label:
+                    label = " ".join(alternative_label)
+            else:
+                label="No Label Found"
+            response_data["QA_Pairs"].append({
+                "Question": question.strip(),
+                "Answer": answer.strip(),
+                "Label": label.strip()})
+        return Response(response_data)
+    
 class GetAllPdf(APIView):
     def get(self, request, format=None):
             pdf_list = User_PDF.objects.all().values('pdf_filename').order_by('-id')
@@ -624,3 +677,23 @@ class GetALLUrls(APIView):
                 return Response({'labels': list(url_list)})
             else:
                 return Response({'data':"Url Does Not Found"})
+            
+            
+class SaveQuestionAnswer(APIView):
+    def post(self,request, format=None):
+        response=request.data.get("Response")
+        print('--------------------->>>>>',type(response))
+        print('--------------------->>>>>',response)
+        question= request.data.get("question")
+        answer= request.data.get("answer")
+        label= request.data.get("label")
+        if not question or not answer or not label:
+            return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            technology_table=Technologies.objects.create(question=question,answer=answer,topic_id=label)
+            serializers=TechnologieSerializer(data=technology_table)
+            serializers.is_valid(raise_exception=True)
+            serializers.save()
+        return Response({"message":"Data Save Sucessfully"})
+        
+            
