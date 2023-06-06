@@ -682,18 +682,19 @@ class GetALLUrls(APIView):
 class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
         response=request.data.get("Response")
-        print('--------------------->>>>>',type(response))
-        print('--------------------->>>>>',response)
-        question= request.data.get("question")
-        answer= request.data.get("answer")
-        label= request.data.get("label")
-        if not question or not answer or not label:
-            return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
-        else:
-            technology_table=Technologies.objects.create(question=question,answer=answer,topic_id=label)
-            serializers=TechnologieSerializer(data=technology_table)
-            serializers.is_valid(raise_exception=True)
-            serializers.save()
+        # response=[{'question': 'What is the actual Team Roster?', 'answer': "Smc League. Failure Or Refusal To Sig N Smc Liability Waiver Form Shall Result In The  Player Not Being Allowed To Participate In League. Any Player Found To Be Playing Without  Signing The Liability Waiver Shall Be Immediately Suspended From That Match And May  Only Return To Play Upon Signing T He Liability Waiver Following That Match. There Are No  Exceptions For Failure To Agree To Waive Liability. Player Must Also Be Sure To Sign The  Appropriate Team'S Waiver Or Could Be Ruled Ineligible. Waiver Forms Are Available At The  Field Or Information T Able.   Note: Your Team'S Waiver Of Liability Form Is The Actual Team Roster. Submitted  Registration Rosters Are Not Considered Official Until Each Player Has Signed The Waiver Of  Liability And Participated In League Play.   All Players Must Be 19 Years Of A Ge Or Older - Picture Id'S Must Be Produced Upon Request  Of Referee Or League Official. Failure To Produce Accurate Picture Id Upon Request Shall  Result In Removal Of Player From Match Play Until Such Time As Proof Of Age/Identity Can  Be Verified.   To Be E Ligible For Playoffs, All Players Must Have Participated In A Minimum Of Two  Week'S Matches.", 'label': 'Team Roster'}, {'question': 'What is the minimum number of Forfeit Points to be Awarded For Every Of The Following Time Limits?', 'answer': 'Following Week. A Game Forfeit Will Automatically Score The Offending Team In The  Standings As -3 Standing Points, 0 -1 Game, And 0 -50 Points. Although Smc Does Not Have  Any Monetary Forfeit Penalties, Any Team That Forfeits Three Regular Season Matches For Any  Reason Shall Automatically Be Removed From Playoff Contention.   Forfeited Points Will Be Start To Be Declared If There Are Less Than The Required Number Of  Rostered/Registered Players Available To Start The Match. Seven Forfe It Points Will Be  Awarded For Every Of The Following Time Limits:', 'label': 'Forfeit Awarded Time Limits'}, {'question': 'What is an Extra Point Kicked From The Three -Yard Line Will Add One Point?', 'answer': 'Points. Field Goals (Where Available) Will Count As Three (3) Points. Intercepted Or   Recovered Fumbles Of Extra Point Attempts Returned For Score Will Count As Two (2) Points   For The Defense. For Extra Point Conversions:     Mens: An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  “Play” From The 10 -Yard Line Will Add Two Points.  Coed : An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  Executed From The Same Spot With A Female Participant (Qb, Receiver, Rusher) Will  Add Two Points. An Extr A Point Executed From The Same Spot With A Female  Participant (Qb, Receiver, Rusher) Will Add Three Points.', 'label': 'No Label Found'}, {'question': 'What is the name of the phrase that marks the Penalty at the point of infraction?', 'answer': 'Result In An Automatic Penalty With The Ball Marked At The Point Of Infraction Unless The  Pass Is Less Than The Penalty: Meaning --If A Pass Ex Ceeds Ten Yards And There Is Pass  Interference, The Penalty Is Marked At The Spot Of Foul With Automatic First Down -- If Pass  Interference Is Called Less Than Ten Yards From Line Of Scrimmage, The Penalty Is Marked 10  Yards From Line Of Scrimmage With Auto Matic First Down. Pass Interference In The End  Zone Will Result In A New First Down On The One -Yard Line. Offensive Pass Interference Will  Result In A 10 -Yard Penalty From The Line Of Scrimmage.', 'label': 'Phrase Marks Penalty Infraction'}]
+        for data in response:
+            question=data.get('question')
+            answer=data.get('answer')
+            label=data.get('label')
+            if not question or not answer or not label:
+                return Response({"message":"Data is Not Found"})
+            if not Topic.objects.filter(Topic = label).exists():
+                topic_save=Topic.objects.create(Topic=label)
+                topic_save.save()
+            topic_id= Topic.objects.filter(Topic=label).values("id")
+            topic_id = topic_id[0]['id']
+            technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id)
         return Response({"message":"Data Save Sucessfully"})
         
             
