@@ -48,7 +48,7 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://127.0.0.1:8000/static/media/"
+url="http://16.16.179.199:8000/static/media/"
 
 
 #Creating tokens manually
@@ -303,12 +303,9 @@ class AdminScraping(APIView):
     
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
-            labels = User_Label.objects.filter(user_id=user_id).values_list('Label', flat=True).order_by("-id")
-            print('------------------------->>>>',labels)
-            if labels:
-                return Response({'labels': list(labels)})
-            else:
-              return Response({'error': 'User Label does not exist'})
+            label_id = User_Label.objects.filter(user_id=user_id).values_list("id" ,'Label')#.order_by("-id")
+            return Response(label_id)
+
 
 class PDFReaderView(APIView):
     def run_model(self,input_strings, tokenizer ,model,**generator_args):
@@ -428,16 +425,20 @@ class SaveQuestionAnswer(APIView):
         
 class ShowAllData(APIView):
     def post(self,request, format=None):
-        label=request.data.get("topic").title()
-        if not Topic.objects.filter(Topic = label).exists():
+        label_id=request.data.get("id")
+        if not User_Label.objects.filter(id=label_id).exists():
             return Response({"message":"Label is Not Exists"})
-        label_id=Topic.objects.filter(Topic= label).values('id')
-        label_id = label_id[0]['id']
-        if not QuestionAndAnswr.objects.filter(topic_id = label_id).exists():
+        label=User_Label.objects.filter(id=label_id).values('Label')
+        label = label[0]['Label']
+        if not Topic.objects.filter(Topic=label).exists():
+            return Response({"message":"Label is Not Exists"})
+        topic_id=Topic.objects.filter(Topic=label).values("id")
+        topic_id = topic_id[0]['id']
+        if not QuestionAndAnswr.objects.filter(topic_id =topic_id).exists():
             return Response({"message":"Label Id not Found"})
         else:
-            question=QuestionAndAnswr.objects.filter(topic_id = label_id).values("question")
-            answer=QuestionAndAnswr.objects.filter(topic_id = label_id).values("answer")
+            question=QuestionAndAnswr.objects.filter(topic_id =topic_id).values("question")
+            answer=QuestionAndAnswr.objects.filter(topic_id = topic_id).values("answer")
             response_data = []
             for question, answer in zip(question, answer):
                 response_data.append({
