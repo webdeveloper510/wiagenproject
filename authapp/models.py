@@ -95,43 +95,6 @@ VARIANT_CHOICES=(
     ("Cricket","Cricket"),("Mobile","Mobile"),("Technology","Technology")
 )
 
-class Content(models.Model):
-    user=models.ForeignKey(User,on_delete=models.CASCADE)
-    input=models.TextField()
-    output=models.TextField(null=True,blank=True)
-    variant=models.CharField(choices=VARIANT_CHOICES,max_length=30)
-    language=models.CharField(choices=LANGUAGE_CHOICES,max_length=30)
-
-class Cricket_Question_and_Answer(models.Model):
-     question=models.TextField(max_length=1000)
-     answer=models.TextField(max_length=1000)
-    
-    # class Meta:   
-    #     app_label = 'firstmyapp'
-    #     db_table ="cricket_question_and_answer"
-    # using = 'default'
-
-class Mobile_Technology_Waves(models.Model):
-    question=models.TextField(max_length=1000)
-    answer=models.TextField(max_length=1000)
-
-    # class Meta:
-    #     app_label = 'firstmyapp'
-    #     db_table ="mobile_technology_waves"
-
-    # # specify the database to use
-    # using = 'default'
-    
-class Technologies(models.Model):
-    question=models.TextField(max_length=1000)
-    answer=models.TextField(max_length=1000)
-
-    # class Meta:
-    #     app_label = 'firstmyapp'
-    #     db_table ="technologies"
-    # using = 'user1'
-
-
 class UserDataModels(models.Model):
     input=models.TextField()
     database_type=models.CharField(choices=VARIANT_CHOICES,max_length=30)

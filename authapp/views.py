@@ -107,76 +107,6 @@ class LogoutUser(APIView):
     def post(self, request, format=None):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
 
-
-class ContenViews(APIView):
-    renderer_classes=[UserRenderer]  
-    def post(self,request):
-        input=request.data.get('input')
-        language=request.data.get('language')
-        variant=request.data.get('variant')
-        user_id=request.data.get('user_id')
-        if not input:
-            return Response({"message":"please provide input text"})
-        if not language:
-            return Response({"message":"please select langusge"})
-        if not variant:
-            return Response({"message":"select variant for creativity"})
-        if not user_id:
-            return Response({"message":"user is required"})
-        if not User.objects.filter(id=user_id).exists():
-             return Response({"message":" user does not exist"})
-         
-        user=User.objects.get(id=user_id)
-        user.user=user
-        content_data=Content.objects.create(input=input,language=language,user_id=user,variant=variant)
-        serializers=ContentSerializer(data=content_data)
-        content_data.save()
-        
-#### get data from the database
-       
-        input_text=content_data.input                   ## get input data from the database.
-        language_detect=content_data.language           ## get language from the database
-        variant_data=content_data.variant               ## get variant option detect from the database
-        content_id=content_data.id
-        
-        if variant=="1 variant":
-            loops=1
-        elif variant=="2 variant":
-            loops=2
-        elif variant=="3 variant":
-            loops=3
-        else:
-            return Response ({"message":"Invalid varinat value"})
-        
-        outputs=[]
-        for i in range(loops):
-            response = openai.Completion.create(
-            model="text-davinci-003",
-            prompt=f"Auto Response Generator \n\nUser: {input_text} \n\nAI:\n",
-            temperature=1,
-            max_tokens=1000,
-            top_p=1,
-            frequency_penalty=1,    
-            presence_penalty=1,
-            )   
-            output= response.choices[0].text
-            translated_output = translator.translate(output, dest=language_detect).text
-            outputs.append(translated_output)
-        update_content=Content.objects.filter(id=content_id).update(output=outputs)
-        return Response({'msg':'Data Added Succesfully','status':'status.HTTP_201_CREATED','output':outputs})   
-    
-
-
-class ClusterView(APIView):
-    def get(self,request):
-        data=Cricket_Question_and_Answer.objects.all()
-        serializer=CricketSerializer(data=data,many=True)
-        if serializer.is_valid():
-            df1=pd.DataFrame(data=serializer.data)
-            print(df1)
-        else:
-            return Response({"message":"Sorry"})
-        return Response({"message":df1})
     
 class TechnologiesView(APIView):
     model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
@@ -291,207 +221,6 @@ class TechnologiesView(APIView):
                 "Answer": response,
                 "AnswerSource":"[Chatgpt Response]"}
             return Response(response_data)
-
-            # return Response({"Label":label,"Answer":response})
-
-
-class CricketScrapingView(APIView):
-    def post(self, request, format=None):
-        topic_id=request.data.get('topic_id')
-        if not topic_id:
-            return Response({"message":"topic_id is required"})
-        urls = ["https://www.prep4ias.com/top-300-cricket-general-knowledge-questions-and-answers/","https://www.edubabaji.com/top-50-cricket-gk-questions-answers-in-english/"]
-
-        array=[] 
-        for index, url in enumerate(urls):
-            if index ==0:
-                    print(url)
-
-                    response = requests.get(url)
-                    html_content = response.content
-                    soup = BeautifulSoup(html_content, "html.parser")
-                    pattern = r'^\d{1,2}\b'
-                    h3_tags = soup.find_all("h3")
-                    count = 0
-                    for h3 in h3_tags:
-                        if count == 60:
-                            break
-                        question=h3.text
-                        question=re.sub(r'\.', '', question)
-                        question=re.sub(r'\d+', '', question)
-                        # print(question)
-                        answer=h3.find_next("p").text
-                        answer=re.sub(r'\.', '', answer)
-                        answer= re.sub(r'\bAns\b', '', answer)
-                        data_dict={"question":question,"answer":answer}
-                        array.append(data_dict)
-                        # print(array)
-                        count += 1
-            if index ==1:
-                    print(url)
-                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-
-                    response = requests.get(url,headers=headers)
-
-                    soup = BeautifulSoup(response.content, "html.parser")
-
-                    video_wrapper = soup.find("div", {"class": "jetpack-video-wrapper"})
-
-                    ol_tag = soup.find('ol')
-
-                    for li_tag in ol_tag.find_all('li'):
-                        li_text = li_tag.text.strip()
-                        strong_tag = li_tag.find('strong')
-                        if strong_tag:
-                            strong_text = strong_tag.text.strip()
-                        else:
-                            strong_text = None
-                        
-                        question=li_text
-                        question=question.split('?')[0] + '?'
-                        # print(question)
-
-                        answer=strong_text
-                        answer=answer[1:]
-                        # print(answer)
-                        data_dict2={"question":question,"answer":answer}
-                        array.append(data_dict2)
-        print(array)
-        for x in array:
-             question=(x['question'])
-             answer=(x['answer'])
-             topic = Topic.objects.get(id= topic_id)
-             topic.topic = topic
-             cricketdata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
-             serializer=QuestionAndAnswrSerializer(data=cricketdata)
-             cricketdata.save()
-        return Response({"message":"scrap data successfully","status":"200","data":len(array)})
-    
-#mobile waves
-class WebScrapDataView(APIView):
-     def post(self, request, format=None):
-        topic_id=request.data.get('topic_id')
-        if not topic_id:
-            return Response({"message":"topic_id is required"})
-
-        page = requests.get("https://buildfire.com/mobile-technology-waves/")
-        soup = BeautifulSoup(page.content, "html.parser")
-        p_tags = soup.select("h2 + p")
-        array=[]
-        count=0
-        pattern = r'\d+'
-        for p_tag in p_tags:
-            h2_tag = p_tag.previous_sibling.previous_sibling
-            if h2_tag is not None and h2_tag.name == "h2":
-                print(h2_tag.text)
-            print(p_tag.text)
-            question = re.sub(pattern, '', h2_tag.text)
-            answer=re.sub(pattern, '', p_tag.text)
-            topic = Topic.objects.get(id= topic_id)
-            topic.topic = topic
-            scrappy=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
-            serializer=QuestionAndAnswrSerializer(data=scrappy)
-            scrappy.save()
-            count+=1
-            if count==23:
-                break
-            dict_data={"question":question,"answer":answer}
-            array.append(dict_data)
-            print(array)
-            
-        return Response({"message":"scrap data successfully","status":"200","Data":array})
-#mobile technology secand part
-class MobileAppDevelopementView(APIView):
-      def post(self, request, format=None):
-            topic_id=request.data.get('topic_id')
-            if not topic_id:
-                return Response({"message":"topic_id is required"})
-
-            url= "https://splitmetrics.com/blog/mobile-trends-for-2022/"
-            response = requests.get(url)
-            html_content = response.content
-            soup = BeautifulSoup(html_content, "html.parser")
-            h3_tags = soup.find_all("h3")
-            # count = 0
-            # data_count=0
-            for h3 in h3_tags:
-                      
-                 question=h3.text
-                 dot_index = question.find('.')
-                 if dot_index != -1:
-                    question = question[dot_index+1:].strip()
-                 print(question)
-                 answer=h3.find_next("p").text
-                 print(answer)
-                 topic = Topic.objects.get(id= topic_id)
-                 topic.topic = topic
-                 mobiledata=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
-                 serializer=QuestionAndAnswrSerializer(data=mobiledata)
-                 mobiledata.save()
-            return Response({"message":"scrap data successfully","status":"200"})
-
-
-#technology
-class EmergingTechnologyView(APIView):
-    def post(self, request, format=None):
-        topic_id=request.data.get('topic_id')
-        if not topic_id:
-            return Response({"message":"topic_id is required"})
-        page = requests.get("https://www.ishir.com/blog/55810/top-15-emerging-technology-trends-to-watch-in-2023-and-beyond.htm")
-        soup = BeautifulSoup(page.content, "html.parser")
-        h3_tags = soup.find_all('h3')
-        array=[]
-        pattern = r'^\d{1,2}\b'
-        for h3 in h3_tags:
-            h3_text = h3.text.strip()
-            question=h3_text
-            question= question.replace(".", "")
-            question = re.sub(pattern, '', question)
-
-            # find the first paragraph tag after the h3 tag and extract its text
-            paragraph = h3.find_next('p')
-            if paragraph is not None:
-                paragraph_text = paragraph.text.strip()
-                answer=paragraph_text
-            topic = Topic.objects.get(id= topic_id)
-            topic.topic = topic
-            scrappy=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
-            serializers=QuestionAndAnswrSerializer(data=scrappy)
-            dict_data={"question":question,"answer":answer}
-            array.append(dict_data)
-        return Response({"message":"scrap data successfully","status":"200","data":array})
-
-
-#football question and answer api
-class FootballScrapingView(APIView):
-      def post(self, request, format=None):
-            topic_id=request.data.get('topic_id')
-            if not topic_id:
-             return Response({"message":"topic_id is required"})
-            url = "https://questionsgems.com/football-quiz-questions/"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
-            response = requests.get(url,headers=headers)
-
-            soup = BeautifulSoup(response.text, "html.parser")
-
-            question_elements = soup.find_all('p')
-
-            for count, x in enumerate(question_elements[1:150], start=2):
-    
-                question = x.text.strip()
-                answer_index = question.find("Answer:")
-                if answer_index != -1:
-                    answer = question[answer_index + len("Answer:"):].strip()
-                    question = question[:answer_index].strip()
-                    print("q",question)
-                    print("a",answer)
-                    count+=1
-                    topic = Topic.objects.get(id= topic_id)
-                    topic.topic = topic
-                    football_data=QuestionAndAnswr.objects.create(topic=topic,question=question,answer=answer)
-                    serializer=QuestionAndAnswrSerializer(data=football_data)
-                    football_data.save()
-            return Response({"message":"scrap data successfully","status":"200"})
 
 class AdminScraping(APIView):
     def run_model(self,input_strings,tokenizer,model,**generator_args):
@@ -681,12 +410,13 @@ class GetALLUrls(APIView):
             
 class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
-        response=request.data.get("Response")
-        # response=[{'question': 'What is the actual Team Roster?', 'answer': "Smc League. Failure Or Refusal To Sig N Smc Liability Waiver Form Shall Result In The  Player Not Being Allowed To Participate In League. Any Player Found To Be Playing Without  Signing The Liability Waiver Shall Be Immediately Suspended From That Match And May  Only Return To Play Upon Signing T He Liability Waiver Following That Match. There Are No  Exceptions For Failure To Agree To Waive Liability. Player Must Also Be Sure To Sign The  Appropriate Team'S Waiver Or Could Be Ruled Ineligible. Waiver Forms Are Available At The  Field Or Information T Able.   Note: Your Team'S Waiver Of Liability Form Is The Actual Team Roster. Submitted  Registration Rosters Are Not Considered Official Until Each Player Has Signed The Waiver Of  Liability And Participated In League Play.   All Players Must Be 19 Years Of A Ge Or Older - Picture Id'S Must Be Produced Upon Request  Of Referee Or League Official. Failure To Produce Accurate Picture Id Upon Request Shall  Result In Removal Of Player From Match Play Until Such Time As Proof Of Age/Identity Can  Be Verified.   To Be E Ligible For Playoffs, All Players Must Have Participated In A Minimum Of Two  Week'S Matches.", 'label': 'Team Roster'}, {'question': 'What is the minimum number of Forfeit Points to be Awarded For Every Of The Following Time Limits?', 'answer': 'Following Week. A Game Forfeit Will Automatically Score The Offending Team In The  Standings As -3 Standing Points, 0 -1 Game, And 0 -50 Points. Although Smc Does Not Have  Any Monetary Forfeit Penalties, Any Team That Forfeits Three Regular Season Matches For Any  Reason Shall Automatically Be Removed From Playoff Contention.   Forfeited Points Will Be Start To Be Declared If There Are Less Than The Required Number Of  Rostered/Registered Players Available To Start The Match. Seven Forfe It Points Will Be  Awarded For Every Of The Following Time Limits:', 'label': 'Forfeit Awarded Time Limits'}, {'question': 'What is an Extra Point Kicked From The Three -Yard Line Will Add One Point?', 'answer': 'Points. Field Goals (Where Available) Will Count As Three (3) Points. Intercepted Or   Recovered Fumbles Of Extra Point Attempts Returned For Score Will Count As Two (2) Points   For The Defense. For Extra Point Conversions:     Mens: An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  “Play” From The 10 -Yard Line Will Add Two Points.  Coed : An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  Executed From The Same Spot With A Female Participant (Qb, Receiver, Rusher) Will  Add Two Points. An Extr A Point Executed From The Same Spot With A Female  Participant (Qb, Receiver, Rusher) Will Add Three Points.', 'label': 'No Label Found'}, {'question': 'What is the name of the phrase that marks the Penalty at the point of infraction?', 'answer': 'Result In An Automatic Penalty With The Ball Marked At The Point Of Infraction Unless The  Pass Is Less Than The Penalty: Meaning --If A Pass Ex Ceeds Ten Yards And There Is Pass  Interference, The Penalty Is Marked At The Spot Of Foul With Automatic First Down -- If Pass  Interference Is Called Less Than Ten Yards From Line Of Scrimmage, The Penalty Is Marked 10  Yards From Line Of Scrimmage With Auto Matic First Down. Pass Interference In The End  Zone Will Result In A New First Down On The One -Yard Line. Offensive Pass Interference Will  Result In A 10 -Yard Penalty From The Line Of Scrimmage.', 'label': 'Phrase Marks Penalty Infraction'}]
+        # response=request.data.get("Response")
+        response=[{'question': 'What is the actual Team Roster?', 'answer': "Smc League. Failure Or Refusal To Sig N Smc Liability Waiver Form Shall Result In The  Player Not Being Allowed To Participate In League. Any Player Found To Be Playing Without  Signing The Liability Waiver Shall Be Immediately Suspended From That Match And May  Only Return To Play Upon Signing T He Liability Waiver Following That Match. There Are No  Exceptions For Failure To Agree To Waive Liability. Player Must Also Be Sure To Sign The  Appropriate Team'S Waiver Or Could Be Ruled Ineligible. Waiver Forms Are Available At The  Field Or Information T Able.   Note: Your Team'S Waiver Of Liability Form Is The Actual Team Roster. Submitted  Registration Rosters Are Not Considered Official Until Each Player Has Signed The Waiver Of  Liability And Participated In League Play.   All Players Must Be 19 Years Of A Ge Or Older - Picture Id'S Must Be Produced Upon Request  Of Referee Or League Official. Failure To Produce Accurate Picture Id Upon Request Shall  Result In Removal Of Player From Match Play Until Such Time As Proof Of Age/Identity Can  Be Verified.   To Be E Ligible For Playoffs, All Players Must Have Participated In A Minimum Of Two  Week'S Matches.", 'label': 'Team Roster'}, {'question': 'What is the minimum number of Forfeit Points to be Awarded For Every Of The Following Time Limits?', 'answer': 'Following Week. A Game Forfeit Will Automatically Score The Offending Team In The  Standings As -3 Standing Points, 0 -1 Game, And 0 -50 Points. Although Smc Does Not Have  Any Monetary Forfeit Penalties, Any Team That Forfeits Three Regular Season Matches For Any  Reason Shall Automatically Be Removed From Playoff Contention.   Forfeited Points Will Be Start To Be Declared If There Are Less Than The Required Number Of  Rostered/Registered Players Available To Start The Match. Seven Forfe It Points Will Be  Awarded For Every Of The Following Time Limits:', 'label': 'Forfeit Awarded Time Limits'}, {'question': 'What is an Extra Point Kicked From The Three -Yard Line Will Add One Point?', 'answer': 'Points. Field Goals (Where Available) Will Count As Three (3) Points. Intercepted Or   Recovered Fumbles Of Extra Point Attempts Returned For Score Will Count As Two (2) Points   For The Defense. For Extra Point Conversions:     Mens: An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  “Play” From The 10 -Yard Line Will Add Two Points.  Coed : An Extra Point Kicked From The Three -Yard Line Will Add One Point. An  Extra Point “Play” From The Three -Yard Line Will Add One Point. An Extra Point  Executed From The Same Spot With A Female Participant (Qb, Receiver, Rusher) Will  Add Two Points. An Extr A Point Executed From The Same Spot With A Female  Participant (Qb, Receiver, Rusher) Will Add Three Points.', 'label': 'No Label Found'}, {'question': 'What is the name of the phrase that marks the Penalty at the point of infraction?', 'answer': 'Result In An Automatic Penalty With The Ball Marked At The Point Of Infraction Unless The  Pass Is Less Than The Penalty: Meaning --If A Pass Ex Ceeds Ten Yards And There Is Pass  Interference, The Penalty Is Marked At The Spot Of Foul With Automatic First Down -- If Pass  Interference Is Called Less Than Ten Yards From Line Of Scrimmage, The Penalty Is Marked 10  Yards From Line Of Scrimmage With Auto Matic First Down. Pass Interference In The End  Zone Will Result In A New First Down On The One -Yard Line. Offensive Pass Interference Will  Result In A 10 -Yard Penalty From The Line Of Scrimmage.', 'label': 'Phrase Marks Penalty Infraction'}]
         for data in response:
             question=data.get('question')
             answer=data.get('answer')
             label=data.get('label')
+            print('-------------->>>>>',label)
             if not question or not answer or not label:
                 return Response({"message":"Data is Not Found"})
             if not Topic.objects.filter(Topic = label).exists():
@@ -696,5 +426,24 @@ class SaveQuestionAnswer(APIView):
             topic_id = topic_id[0]['id']
             technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id)
         return Response({"message":"Data Save Sucessfully"})
+        
+class ShowAllData(APIView):
+    def post(self,request, format=None):
+        label=request.data.get("topic").title()
+        if not Topic.objects.filter(Topic = label).exists():
+            return Response({"message":"Label is Not Exists"})
+        label_id=Topic.objects.filter(Topic= label).values('id')
+        label_id = label_id[0]['id']
+        if not QuestionAndAnswr.objects.filter(topic_id = label_id).exists():
+            return Response({"message":"Label Id not Found"})
+        else:
+            question=QuestionAndAnswr.objects.filter(topic_id = label_id).values("question")
+            answer=QuestionAndAnswr.objects.filter(topic_id = label_id).values("answer")
+            response_data = []
+            for question, answer in zip(question, answer):
+                response_data.append({
+                    "Question": question,
+                    "Answer": answer})
+        return Response(response_data)
         
             
