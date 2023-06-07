@@ -109,8 +109,8 @@ class LogoutUser(APIView):
 
     
 class TechnologiesView(APIView):
-    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
