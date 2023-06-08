@@ -196,4 +196,4 @@ MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
 BASE_URL='http://127.0.0.1:8000/static'
 
-API_KEY="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"   
+API_KEY=""   

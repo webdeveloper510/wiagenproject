@@ -198,7 +198,6 @@ class TechnologiesView(APIView):
                 "AnswerSource":"This Response is Coming From Database"}
         # return Response({"Label":result,"Answer":answer})
             return Response(response_data)
-
         else:
             input=user_input.title()
             print('input-------------------------------------->>>>',input)
@@ -304,7 +303,13 @@ class AdminScraping(APIView):
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
             label_id = User_Label.objects.filter(user_id=user_id).values_list("id" ,'Label')#.order_by("-id")
-            return Response(label_id)
+            print("Label -ID ",label_id[0][1])
+            unique_label=[]
+            for label in label_id:
+                if label[1] not in unique_label:
+                    if label[1]!="":
+                        unique_label.append(label[1])
+            return Response({"Label_id":label_id , "unique_label":unique_label})
 
 
 class PDFReaderView(APIView):
@@ -393,7 +398,6 @@ class GetAllPdf(APIView):
     def get(self, request, format=None):
             pdffilename= User_PDF.objects.all().values('pdf_filename').order_by('-id')
             pdfdownload = User_PDF.objects.all().values('pdf').order_by('-id')
-            print('------------------------>>>>',pdfdownload)
             if pdffilename and pdfdownload :
                 return Response({'pdffilename': list(pdffilename),'pdfdownload':list(pdfdownload)})
             else:
