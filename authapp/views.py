@@ -58,7 +58,7 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
-
+    
 class UserRegistrationView(APIView):
     renderer_classes=[UserRenderer]
     def post(self,request,format=None):
@@ -201,19 +201,30 @@ class TechnologiesView(APIView):
         else:
             input=user_input.title()
             print('input-------------------------------------->>>>',input)
-            doc = nlp(input)
-            print('doc----------------------->>>>>',doc)
-            # Merge consecutive NOUN tokens
+            doc = nlp(input )
             merged_text = []
+            label_found = False  
             for word in doc.ents:
-                print(word)
-                print('-------------------->>',word.text)
-                print('Label =================================>>>>>',word.text,word.label_)
-                if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or 'MONEY' or 'ORDINAL' or 'PRODUCT' or 'NORP' or 'FAC' or 'EVENT' or 'WORK_OF_ART'or'LAW' or 'LANGUAGE' or "PERCENT" or 'QUANTITY' or 'CARDINALS':
+                if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
                     merged_text.append(word.text.title())
-            sentence = " ".join(merged_text)
-            label=sentence
-            userLabel_data=User_Label.objects.create(user_id=user_id,Label=label)
+                    label_found=True
+            label= " ".join(merged_text)
+            
+            if not label_found or label.strip() == "":
+                alternative_label=[]
+                for token in doc:
+                    if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
+                        alternative_label.append(token.text.title())
+                    if token.pos_ == "NNP":
+                        alternative_label.append(token.text.title())
+                    if token.pos_ == "VERB":
+                        alternative_label.append(token.text.title())
+                
+                if alternative_label:
+                    label = " ".join(alternative_label)
+            else:
+                label="No Label Found"
+            userLabel_data=User_Label.objects.create(user_id=user_id,Label=label.strip())
             response=self.chatgpt(input)
             response_data = {
                 "Label": label,
