@@ -106,7 +106,7 @@ DATABASES = {
     'ENGINE': 'django.db.backends.mysql', 
     'NAME': 'Technology',
     'USER': 'root',
-    'PASSWORD': 'admin@123', 
+    'PASSWORD': '', 
     'HOST': 'localhost', # Or an IP Address that your DB is hosted on
     'PORT': '3306',
     'OPTIONS': {
@@ -196,4 +196,4 @@ MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
 BASE_URL='http://127.0.0.1:8000/static'
 
-API_KEY=""   
+API_KEY="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"   

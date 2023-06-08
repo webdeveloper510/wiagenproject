@@ -48,7 +48,7 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://16.16.179.199:8000/static/media/"
+url="http://127.0.0.1:8000/static/media/"
 
 
 #Creating tokens manually
@@ -109,8 +109,8 @@ class LogoutUser(APIView):
 
     
 class TechnologiesView(APIView):
-    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -195,7 +195,7 @@ class TechnologiesView(APIView):
             response_data = {
                 "Label": result,
                 "Answer": answer,
-                "AnswerSource":"[Database Response]"}
+                "AnswerSource":"This Response is Coming From Database"}
         # return Response({"Label":result,"Answer":answer})
             return Response(response_data)
 
@@ -219,7 +219,7 @@ class TechnologiesView(APIView):
             response_data = {
                 "Label": label,
                 "Answer": response,
-                "AnswerSource":"[Chatgpt Response]"}
+                "AnswerSource":"This Response is Coming From Chatgpt"}
             return Response(response_data)
 
 class AdminScraping(APIView):
@@ -343,13 +343,14 @@ class PDFReaderView(APIView):
         return qa_pairs
     def post(self,request, format=None):
         pdffile=  request.FILES.get("pdf")
-        pdffile_name = pdffile.name
-        pdffile_data=User_PDF.objects.create(pdf=pdffile,pdf_filename=pdffile_name)
+        pdffile_data=User_PDF.objects.create(pdf=pdffile,pdf_filename=pdffile.name)
         serializer=User_PDFSerializer(data=pdffile_data)
         pdffile_data.save()
-        print("---->",pdffile_name)
         full_url = urljoin(url, pdffile_data.pdf.name)
         pdf_path=pdffile_data.pdf.path
+        print('---------------------------------->>>>>',pdf_path)
+        pdffile_data.pdf = full_url
+        pdffile_data.save()
         model_name = "allenai/t5-small-squad2-question-generation"
         tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -390,9 +391,11 @@ class PDFReaderView(APIView):
     
 class GetAllPdf(APIView):
     def get(self, request, format=None):
-            pdf_list = User_PDF.objects.all().values('pdf_filename').order_by('-id')
-            if pdf_list:
-                return Response({'labels': list(pdf_list)})
+            pdffilename= User_PDF.objects.all().values('pdf_filename').order_by('-id')
+            pdfdownload = User_PDF.objects.all().values('pdf').order_by('-id')
+            print('------------------------>>>>',pdfdownload)
+            if pdffilename and pdfdownload :
+                return Response({'pdffilename': list(pdffilename),'pdfdownload':list(pdfdownload)})
             else:
                 return Response({'data':"Pdf Does Not Exist"})
 
