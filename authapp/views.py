@@ -48,7 +48,7 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://127.0.0.1:8000/static/media/"
+url="http://16.16.179.199:8000/static/media/"
 
 
 #Creating tokens manually
@@ -109,8 +109,8 @@ class LogoutUser(APIView):
 
     
 class TechnologiesView(APIView):
-    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -276,20 +276,23 @@ class AdminScraping(APIView):
                     doc = nlp(question.title())
                     merged_text = []
                     label_found = False  
-                    for word in doc.ents:
-                        if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
-                            merged_text.append(word.text.title())
+                    for ent in doc.ents:
+                        if ent.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
+                            merged_text.append(ent.text.title())
                             label_found=True
                     label = " ".join(merged_text)
+                    
                     if not label_found or label.strip() == "":
                         alternative_label=[]
+                        
                         for token in doc:
-                            if token.pos_ == "PROPN":
+                            if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
                                 alternative_label.append(token.text.title())
                             if token.pos_ == "NNP":
                                 alternative_label.append(token.text.title())
                             if token.pos_ == "VERB":
                                 alternative_label.append(token.text.title())
+                        
                         if alternative_label:
                             label = " ".join(alternative_label)
                     else:
@@ -396,22 +399,32 @@ class PDFReaderView(APIView):
     
 class GetAllPdf(APIView):
     def get(self, request, format=None):
-            pdffilename= User_PDF.objects.all().values('pdf_filename').order_by('-id')
-            pdfdownload = User_PDF.objects.all().values('pdf').order_by('-id')
-            if pdffilename and pdfdownload :
-                return Response({'pdffilename': list(pdffilename),'pdfdownload':list(pdfdownload)})
+            pdffiles= User_PDF.objects.all().values('pdf_filename','pdf').order_by('-id')
+            pdffilename=[]
+            pdfdownload=[]
+            for pdf in pdffiles:
+                if pdf['pdf_filename'] not in pdffilename:
+                    pdffilename.append(pdf['pdf_filename'])
+                    pdfdownload.append(pdf['pdf'])
+            if pdffilename:
+                return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
             else:
                 return Response({'data':"Pdf Does Not Exist"})
 
 class GetALLUrls(APIView):
     def get(self, request, format=None):
-            url_list = UrlTable.objects.all().values('url').order_by('-id')
+            Allurl= UrlTable.objects.all().values('url').order_by('-id')
+            url_list=[]
+            for url in Allurl:
+                print('-------------->>',url)
+                if url not in url_list :
+                    url_list.append(url)
             if url_list:
                 return Response({'labels': list(url_list)})
             else:
                 return Response({'data':"Url Does Not Found"})
-            
-            
+
+
 class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
         response=request.data.get("Response")
