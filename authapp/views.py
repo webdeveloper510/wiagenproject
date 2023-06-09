@@ -317,13 +317,16 @@ class AdminScraping(APIView):
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
             userlabel= User_Label.objects.filter(user_id=user_id).values_list('Label')#.order_by("-id")
-            unique_label={}
+            unique_id=[]
+            unique_label=[]
             for label in userlabel:
                 topicname=Topic.objects.filter(Topic=label[0]).values('id','Topic').order_by("-id")
                 for idlabel in topicname:
-                    if idlabel['Topic'] and idlabel['id']  not in unique_label:
-                            unique_label[idlabel['id']]=(idlabel['Topic'])
-            return Response({"unique_label":unique_label})
+                    if idlabel['Topic'] not in unique_label:
+                        if idlabel['id'] not in unique_id:
+                            unique_label.append(idlabel['Topic'])
+                            unique_id.append(idlabel['id'])
+                return Response({"unique_id":unique_id,"unique_label":unique_label})
 
 
 class PDFReaderView(APIView):
