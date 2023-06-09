@@ -18,6 +18,7 @@ from django.conf import settings
 from bs4 import BeautifulSoup
 import requests
 import re
+import csv
 import pandas as pd
 import numpy as np
 translator = Translator()
@@ -430,4 +431,20 @@ class ShowAllData(APIView):
                 "Answer": answer_data["answer"]
             })
         return Response(response_data)
+    
 
+class localtolive(APIView):
+    def get(self, request, format=None):
+        data = pd.read_csv('/home/codenomad/Desktop/wiagenproject/local_question_answer.csv')
+
+        for index, row in data.iterrows():
+            question = row['question']
+            answer = row['answer']
+            topic_id = row['topic']
+
+            QuestionAndAnswr.objects.create(question=question, answer=answer, topic_id=topic_id)
+            QuestionAndAnswr.save()
+        return Response({"message": "Data saved successfully"})
+
+        
+ 
