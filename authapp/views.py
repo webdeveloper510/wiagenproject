@@ -316,13 +316,16 @@ class AdminScraping(APIView):
     
 class GetLabelByUser_id(APIView):
     def get(self, request, user_id):
-            label_id = User_Label.objects.filter(user_id=user_id).values_list("id" ,'Label')#.order_by("-id")
-            print("Label -ID ",label_id[0][1])
+            userlabel= User_Label.objects.filter(user_id=user_id).values_list('Label')#.order_by("-id")
             unique_label=[]
-            for label in label_id:
-                if label[1] not in unique_label:
-                    if label[1]!="":
-                        unique_label.append(label[1])
+            label_id=[]
+            for label in userlabel:
+                topicname=Topic.objects.filter(Topic=label[0]).values('id','Topic').order_by("-id")
+                for idlabel in topicname:
+                    if idlabel['Topic'] not in unique_label:
+                        if idlabel['id'] not in label_id:
+                            label_id.append(idlabel['id'])
+                            unique_label.append(idlabel['Topic'])
             return Response({"Label_id":label_id , "unique_label":unique_label})
 
 
@@ -477,4 +480,7 @@ class ShowAllData(APIView):
                     "Answer": answer})
         return Response(response_data)
         
+        
+# class trainModel(APIView):
+#     def post()
             
