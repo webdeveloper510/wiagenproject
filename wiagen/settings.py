@@ -194,6 +194,6 @@ STATICFILES_DIRS = [
 STATIC_URL = '/static/'
 MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
-BASE_URL='http://16.16.179.199:8000/static'
+BASE_URL='http://16.16.179.199/static'
 
 API_KEY=""   
