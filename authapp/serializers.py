@@ -47,13 +47,13 @@ class QuestionAndAnswrSerializer(serializers.ModelSerializer):
         return QuestionAndAnswr.objects.create(**validate_data)
     
 
-class User_LabelSerializer(serializers.ModelSerializer):
-    class Meta:
-        model= User_Label
-        fields = '__all__'
+# class User_LabelSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model= User_Label
+#         fields = '__all__'
            
-    def create(self, validate_data):
-        return User_Label.objects.create(**validate_data)
+#     def create(self, validate_data):
+#         return User_Label.objects.create(**validate_data)
     
 class User_PDFSerializer(serializers.ModelSerializer):
     class Meta:

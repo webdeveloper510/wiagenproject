@@ -48,7 +48,7 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://16.16.179.199:8000/static/media/"
+url="http://127.0.0.1:8000/static/media/"
 
 
 #Creating tokens manually
@@ -106,11 +106,10 @@ class LogoutUser(APIView):
     permission_classes=[IsAuthenticated]
     def post(self, request, format=None):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
-
     
 class TechnologiesView(APIView):
-    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -136,10 +135,32 @@ class TechnologiesView(APIView):
         )
         output= response.choices[0].text
         return output
+    def automaticgetlabel(self,input):
+        doc = nlp(input )
+        merged_text = []
+        label_found = False  
+        for word in doc.ents:
+            if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
+                merged_text.append(word.text.title())
+                label_found=True
+        label= " ".join(merged_text)
+        if not label_found or label.strip() == "":
+            alternative_label=[]
+            for token in doc:
+                if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
+                    alternative_label.append(token.text.title())
+                if token.pos_ == "NNP":
+                    alternative_label.append(token.text.title())
+                if token.pos_ == "VERB":
+                    alternative_label.append(token.text.title())
+            
+            if alternative_label:
+                label = " ".join(alternative_label)
+            else:
+                label="No Label Found"
+        return label
+    
     def post(self, request):
-        user_id=request.data.get('user_id')
-        if not user_id:
-            return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
         service = QuestionAndAnswr.objects.all().order_by('id')
         serializer = QuestionAndAnswrSerializer(service, many=True)
         array=[]
@@ -191,40 +212,18 @@ class TechnologiesView(APIView):
         similarity_percentage = similarity_scores[max_sim_index] * 100
         if (similarity_percentage)>=70:
             answer = filter_data[max_sim_index]['answer']
-            userLabel_data=User_Label.objects.create(user_id=user_id,Label=result)
+            if not Topic.objects.filter(Topic=result).exists():
+                userLabel_data=Topic.objects.create(Topic=result)
             response_data = {
                 "Label": result,
                 "Answer": answer,
                 "AnswerSource":"This Response is Coming From Database"}
-        # return Response({"Label":result,"Answer":answer})
             return Response(response_data)
         else:
             input=user_input.title()
-            print('input-------------------------------------->>>>',input)
-            doc = nlp(input )
-            merged_text = []
-            label_found = False  
-            for word in doc.ents:
-                if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
-                    merged_text.append(word.text.title())
-                    label_found=True
-            label= " ".join(merged_text)
-            
-            if not label_found or label.strip() == "":
-                alternative_label=[]
-                for token in doc:
-                    if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
-                        alternative_label.append(token.text.title())
-                    if token.pos_ == "NNP":
-                        alternative_label.append(token.text.title())
-                    if token.pos_ == "VERB":
-                        alternative_label.append(token.text.title())
-                
-                if alternative_label:
-                    label = " ".join(alternative_label)
-            else:
-                label="No Label Found"
-            userLabel_data=User_Label.objects.create(user_id=user_id,Label=label.strip())
+            label=self.automaticgetlabel(input)
+            if not Topic.objects.filter(Topic=label).exists():
+                userLabel_data=Topic.objects.create(Topic=label.strip())
             response=self.chatgpt(input)
             response_data = {
                 "Label": label,
@@ -284,30 +283,8 @@ class AdminScraping(APIView):
                 generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
                 response_data = {"QA_Pairs": []}
                 for i, (question, answer) in enumerate(generated_qa_pairs):
-                    doc = nlp(question.title())
-                    merged_text = []
-                    label_found = False  
-                    for ent in doc.ents:
-                        if ent.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
-                            merged_text.append(ent.text.title())
-                            label_found=True
-                    label = " ".join(merged_text)
-                    
-                    if not label_found or label.strip() == "":
-                        alternative_label=[]
-                        
-                        for token in doc:
-                            if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
-                                alternative_label.append(token.text.title())
-                            if token.pos_ == "NNP":
-                                alternative_label.append(token.text.title())
-                            if token.pos_ == "VERB":
-                                alternative_label.append(token.text.title())
-                        
-                        if alternative_label:
-                            label = " ".join(alternative_label)
-                    else:
-                        label="No Label Found"
+                    technologiesview=TechnologiesView()
+                    label=technologiesview.automaticgetlabel(question.title())
                     response_data["QA_Pairs"].append({
                         "Question": question.strip(),
                         "Answer": answer.strip(),
@@ -315,18 +292,16 @@ class AdminScraping(APIView):
                 return Response(response_data)
     
 class GetLabelByUser_id(APIView):
-    def get(self, request, user_id):
-            userlabel= User_Label.objects.filter(user_id=user_id).values_list('Label')#.order_by("-id")
+    def get(self, request ,format=None):
+            userlabel= Topic.objects.all().values_list('id','Topic').order_by("-id")
             unique_id=[]
             unique_label=[]
             for label in userlabel:
-                topicname=Topic.objects.filter(Topic=label[0]).values('id','Topic').order_by("-id")
-                for idlabel in topicname:
-                    if idlabel['Topic'] not in unique_label:
-                        if idlabel['id'] not in unique_id:
-                            unique_label.append(idlabel['Topic'])
-                            unique_id.append(idlabel['id'])
-                return Response({"unique_id":unique_id,"unique_label":unique_label})
+                if label[1] not in unique_label:
+                    if label[0] not in unique_id:
+                        unique_label.append(label[1])
+                        unique_id.append(label[0])
+            return Response({"unique_id":unique_id,"unique_label":unique_label})
 
 
 class PDFReaderView(APIView):
@@ -370,7 +345,6 @@ class PDFReaderView(APIView):
         pdffile_data.save()
         full_url = urljoin(url, pdffile_data.pdf.name)
         pdf_path=pdffile_data.pdf.path
-        print('---------------------------------->>>>>',pdf_path)
         pdffile_data.pdf = full_url
         pdffile_data.save()
         model_name = "allenai/t5-small-squad2-question-generation"
@@ -383,28 +357,8 @@ class PDFReaderView(APIView):
         aligned_qa_pairs = [(f"Q.{i+1} {question.strip()}\nAns: {answer.strip()}") for i, (question, answer) in enumerate(generated_qa_pairs)]
         response_data = {"QA_Pairs": []}
         for i, (question, answer) in enumerate(generated_qa_pairs):
-            doc = nlp(question.title())
-            merged_text = []
-            label_found = False  
-            for word in doc.ents:
-                if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
-                    merged_text.append(word.text.title())
-                    label_found=True
-            label = " ".join(merged_text)
-            if not label_found or label.strip() == "":
-                alternative_label=[]
-                for token in doc:
-                    if token.pos_ == "PROPN":
-                        alternative_label.append(token.text.title())
-                    if token.pos_ == "NNP":
-                        alternative_label.append(token.text.title())
-                    if token.pos_ == "VERB":
-                        alternative_label.append(token.text.title())
-                    
-                if alternative_label:
-                    label = " ".join(alternative_label)
-            else:
-                label="No Label Found"
+            technologiesview=TechnologiesView()
+            label=technologiesview.automaticgetlabel(question.title())
             response_data["QA_Pairs"].append({
                 "Question": question.strip(),
                 "Answer": answer.strip(),
@@ -430,7 +384,6 @@ class GetALLUrls(APIView):
             Allurl= UrlTable.objects.all().values('url').order_by('-id')
             url_list=[]
             for url in Allurl:
-                print('-------------->>',url)
                 if url not in url_list :
                     url_list.append(url)
             if url_list:
@@ -438,49 +391,43 @@ class GetALLUrls(APIView):
             else:
                 return Response({'data':"Url Does Not Found"})
 
-
 class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
         response=request.data.get("Response")
+        user_id=request.data.get('user_id')
+        if not user_id:
+            return Response({"message":"user is required"})
+        if not User.objects.filter(id=user_id).exists():
+            return Response({"message":"user does not  is exist"})
         for data in response:
-            question=data.get('question')
-            answer=data.get('answer')
-            label=data.get('label')
-            print('-------------->>>>>',label)
-            if not question or not answer or not label:
-                return Response({"message":"Data is Not Found"})
+            question=data['question']
+            answer=data['answer']
+            label=data['label']
+            if not question and not answer and not label:
+                return Response({"message":"Data Not Found"})
             if not Topic.objects.filter(Topic = label).exists():
                 topic_save=Topic.objects.create(Topic=label)
                 topic_save.save()
             topic_id= Topic.objects.filter(Topic=label).values("id")
             topic_id = topic_id[0]['id']
-            technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id)
+            technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user_id)
         return Response({"message":"Data Save Sucessfully"})
         
 class ShowAllData(APIView):
-    def post(self,request, format=None):
-        label_id=request.data.get("id")
-        if not User_Label.objects.filter(id=label_id).exists():
-            return Response({"message":"Label is Not Exists"})
-        label=User_Label.objects.filter(id=label_id).values('Label')
-        label = label[0]['Label']
-        if not Topic.objects.filter(Topic=label).exists():
-            return Response({"message":"Label is Not Exists"})
-        topic_id=Topic.objects.filter(Topic=label).values("id")
-        topic_id = topic_id[0]['id']
-        if not QuestionAndAnswr.objects.filter(topic_id =topic_id).exists():
-            return Response({"message":"Label Id not Found"})
-        else:
-            question=QuestionAndAnswr.objects.filter(topic_id =topic_id).values("question")
-            answer=QuestionAndAnswr.objects.filter(topic_id = topic_id).values("answer")
-            response_data = []
-            for question, answer in zip(question, answer):
-                response_data.append({
-                    "Question": question,
-                    "Answer": answer})
+    def post(self, request,user_id, format=None):
+        user_id=request.data.get('user_id')
+        if not user_id:
+            return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
+        label_id = request.data.get("id")
+        if not Topic.objects.filter(id=label_id).exists():
+            return Response({"message": "Data Not Found"})
+        questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
+        answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
+        response_data = []
+        for question_data, answer_data in zip(questions, answers):
+            response_data.append({
+                "Question": question_data["question"],
+                "Answer": answer_data["answer"]
+            })
         return Response(response_data)
-        
-        
-# class trainModel(APIView):
-#     def post()
-            
+

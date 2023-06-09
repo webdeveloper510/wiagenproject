@@ -104,15 +104,17 @@ class UserDataModels(models.Model):
 
 class Topic(models.Model):
     Topic=models.CharField(max_length=200,null=True,blank=True)
+    user_id=models.CharField(max_length=200,null=True,blank=True)
 
 class QuestionAndAnswr(models.Model):
+    user_id=models.CharField(max_length=250,null=True,blank=True)
     topic=models.ForeignKey(Topic,on_delete=models.CASCADE)
     question=models.TextField(max_length=1000)
     answer=models.TextField(max_length=1000)
 
-class User_Label(models.Model):
-    user_id=models.CharField(max_length=250,null=True,blank=True)
-    Label=models.CharField(max_length=250,null=True,blank=True)
+# class User_Label(models.Model):
+#     user_id=models.CharField(max_length=250,null=True,blank=True)
+#     Label=models.CharField(max_length=250,null=True,blank=True)
     
 class User_PDF(models.Model):
     pdf=models.FileField(upload_to="user_pdf/",blank=True,null=True)
