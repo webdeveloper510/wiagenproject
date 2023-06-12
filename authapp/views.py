@@ -169,8 +169,8 @@ class TechnologiesView(APIView):
             topic_id=x["topic"]
             question=self.clean_text(x["question"])
             answer=x["answer"]
-            topicvalue=Topic.objects.filter(id=topic_id).values('Topic')
-            TopicName=(topicvalue[0]['Topic'])
+            topicvalue=Topic.objects.filter(id=topic_id).values('topic_name')
+            TopicName=(topicvalue[0]['topic_name'])
             data_dict={"Topic":TopicName,"question":question,"answer":answer}
             array.append(data_dict)
         data=[dict['question'] for dict in array]
@@ -213,8 +213,8 @@ class TechnologiesView(APIView):
         similarity_percentage = similarity_scores[max_sim_index] * 100
         if (similarity_percentage)>=70:
             answer = filter_data[max_sim_index]['answer']
-            if not Topic.objects.filter(Topic=result).exists():
-                userLabel_data=Topic.objects.create(Topic=result)
+            if not Topic.objects.filter(topic_name=result).exists():
+                userLabel_data=Topic.objects.create(topic_name=result)
             response_data = {
                 "Label": result,
                 "Answer": answer,
@@ -223,8 +223,8 @@ class TechnologiesView(APIView):
         else:
             input=user_input.title()
             label=self.automaticgetlabel(input)
-            if not Topic.objects.filter(Topic=label).exists():
-                userLabel_data=Topic.objects.create(Topic=label.strip())
+            if not Topic.objects.filter(topic_name=label).exists():
+                userLabel_data=Topic.objects.create(topic_name=label.strip())
             response=self.chatgpt(input)
             response_data = {
                 "Label": label,
@@ -294,7 +294,7 @@ class AdminScraping(APIView):
     
 class GetLabelByUser_id(APIView):
     def get(self, request ,format=None):
-            userlabel= Topic.objects.all().values_list('id','Topic').order_by("-id")
+            userlabel= Topic.objects.all().values_list('id','topic_name').order_by("-id")
             unique_id=[]
             unique_label=[]
             for label in userlabel:
@@ -406,10 +406,10 @@ class SaveQuestionAnswer(APIView):
             label=data['label']
             if not question and not answer and not label:
                 return Response({"message":"Data Not Found"})
-            if not Topic.objects.filter(Topic = label).exists():
-                topic_save=Topic.objects.create(Topic=label)
+            if not Topic.objects.filter(topic_name = label).exists():
+                topic_save=Topic.objects.create(topic_name=label)
                 topic_save.save()
-            topic_id= Topic.objects.filter(Topic=label).values("id")
+            topic_id= Topic.objects.filter(topic_name=label).values("id")
             topic_id = topic_id[0]['id']
             technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user_id)
         return Response({"message":"Data Save Sucessfully"})
