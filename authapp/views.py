@@ -49,9 +49,9 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://16.16.179.199:8000/static/media/"
+# url="http://16.16.179.199:8000/static/media/"
 
-# url="http://127.0.0.1:8000/static/media/"
+url="http://127.0.0.1:8000/static/media/"
 
 
 #Creating tokens manually
@@ -111,8 +111,8 @@ class LogoutUser(APIView):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
     
 class TechnologiesView(APIView):
-    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -398,6 +398,7 @@ class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
         response=request.data.get("Response")
         user_id=request.data.get('user_id')
+      
         if not user_id:
             return Response({"message":"user is required"})
         if not User.objects.filter(id=user_id).exists():
@@ -411,17 +412,22 @@ class SaveQuestionAnswer(APIView):
             if not Topic.objects.filter(topic_name = label).exists():
                 topic_save=Topic.objects.create(topic_name=label)
                 topic_save.save()
-            topic_id= Topic.objects.filter(topic_name=label).values("id")
-            topic_id = topic_id[0]['id']
-            technology_table=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user_id)
+            filter_topic_id= Topic.objects.filter(topic_name=label).values("id")
+            topic_id = filter_topic_id[0]['id']
+            user = User.objects.get(id=user_id)
+            saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
+            saveQuesAns.save()
         return Response({"message":"Data Save Sucessfully"})
         
 class ShowAllData(APIView):
     def post(self, request,user_id, format=None):
         user_id=request.data.get('user_id')
+        
+        print("user_id",user_id)
         if not user_id:
             return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
-        label_id = request.data.get("id")
+        
+        label_id = request.data.get("id")   ## GET TOPIC ID
         if not Topic.objects.filter(id=label_id).exists():
             return Response({"message": "Data Not Found"})
         questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
@@ -435,5 +441,22 @@ class ShowAllData(APIView):
         return Response(response_data)
     
  
-# class TrainModel(APIView):
-    
+class local_save(APIView):
+    def get(self,request, format=None):
+        df=pd.read_csv("/home/codenomad/Desktop/wiagenproject/local_question_answer.csv")
+        df.drop(df.index[-10:], inplace=True)
+        print(df.head())
+        user_id = 1
+        user = User.objects.get(id=user_id)
+        for index , row in df.iterrows():
+            question=row["Question"]
+            answer=row["Answer"]
+            topic_id=row["Topic"]
+            print(topic_id)
+            if Topic.objects.filter(id=topic_id).exists:
+                QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
+        return Response({"message":"API run Correct"})
+  
+
+
+
