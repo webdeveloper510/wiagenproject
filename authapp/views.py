@@ -436,14 +436,13 @@ class ShowAllData(APIView):
 class localtolive(APIView):
     def get(self, request, format=None):
         data = pd.read_csv('/home/codenomad/Desktop/wiagenproject/local_question_answer.csv')
-
+        print(data.columns)
         for index, row in data.iterrows():
-            question = row['question']
-            answer = row['answer']
-            topic_id = row['topic']
+            question = row['Question']
+            answer = row['Answer']
+            topic_id = row['Topic']
 
             QuestionAndAnswr.objects.create(question=question, answer=answer, topic_id=topic_id)
-            QuestionAndAnswr.save()
         return Response({"message": "Data saved successfully"})
 
         
