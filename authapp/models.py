@@ -106,6 +106,7 @@ class Topic(models.Model):
     topic_name=models.CharField(max_length=200,null=True,blank=True)
 
 class QuestionAndAnswr(models.Model):
+    user_id = models.ForeignKey(User,on_delete=models.CASCADE)
     topic=models.ForeignKey(Topic,on_delete=models.CASCADE)
     question=models.TextField(max_length=1000)
     answer=models.TextField(max_length=1000)

@@ -49,7 +49,9 @@ openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-url="http://127.0.0.1:8000/static/media/"
+url="http://16.16.179.199:8000/static/media/"
+
+# url="http://127.0.0.1:8000/static/media/"
 
 
 #Creating tokens manually
@@ -109,8 +111,8 @@ class LogoutUser(APIView):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
     
 class TechnologiesView(APIView):
-    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -432,18 +434,6 @@ class ShowAllData(APIView):
             })
         return Response(response_data)
     
-
-class localtolive(APIView):
-    def get(self, request, format=None):
-        data = pd.read_csv('/home/codenomad/Desktop/wiagenproject/local_question_answer.csv')
-        print(data.columns)
-        for index, row in data.iterrows():
-            question = row['Question']
-            answer = row['Answer']
-            topic_id = row['Topic']
-
-            QuestionAndAnswr.objects.create(question=question, answer=answer, topic_id=topic_id)
-        return Response({"message": "Data saved successfully"})
-
-        
  
+# class TrainModel(APIView):
+    
