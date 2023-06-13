@@ -12,14 +12,12 @@ urlpatterns = [
     path('logout/', LogoutUser.as_view(),name='logout'),
     path('adminscrapping/', views.AdminScraping.as_view()),
     path('prediction/',TechnologiesView.as_view()),
-    # path('label/<int:user_id>/',GetLabelByUser_id.as_view()),
     path('label/',GetLabelByUser_id.as_view()),
     path('pdfresult/',PDFReaderView.as_view()),
     path('pdfdata/',GetAllPdf.as_view()),
     path('urldata/',GetALLUrls.as_view()),
     path('SaveData/',SaveQuestionAnswer.as_view()),
     path('ShowData/<int:user_id>/',ShowAllData.as_view()),
-    path('local/',local_save.as_view()),
 ]
 
 if settings.DEBUG:

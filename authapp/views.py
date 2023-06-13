@@ -43,15 +43,17 @@ import pdfplumber
 from django.contrib.auth import login
 import spacy
 import nltk
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 stemmer=PorterStemmer()
 import sentencepiece
 openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
 from urllib.parse import urljoin
 
-# url="http://16.16.179.199:8000/static/media/"
+url="http://16.16.179.199:8000/static/media/"
 
-url="http://127.0.0.1:8000/static/media/"
+# url="http://127.0.0.1:8000/static/media/"
 
 
 #Creating tokens manually
@@ -111,8 +113,10 @@ class LogoutUser(APIView):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
     
 class TechnologiesView(APIView):
-    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    # model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    # model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -194,7 +198,8 @@ class TechnologiesView(APIView):
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(self.model_weight_path)
         # Take user input
-        user_input=request.POST.get('input')
+        user_input=request.POST.get('input').title()
+        print()
         clean_user_input=self.clean_text(user_input)
         new_input_tokenizer = tokenizer.texts_to_sequences([clean_user_input])
         new_input = pad_sequences(new_input_tokenizer, maxlen=MAX_SEQUENCE_LENGTH) 
@@ -218,6 +223,7 @@ class TechnologiesView(APIView):
             if not Topic.objects.filter(topic_name=result).exists():
                 userLabel_data=Topic.objects.create(topic_name=result)
             response_data = {
+                "Question":user_input,
                 "Label": result,
                 "Answer": answer,
                 "AnswerSource":"This Response is Coming From Database"}
@@ -229,6 +235,7 @@ class TechnologiesView(APIView):
                 userLabel_data=Topic.objects.create(topic_name=label.strip())
             response=self.chatgpt(input)
             response_data = {
+                "Question":user_input,
                 "Label": label,
                 "Answer": response,
                 "AnswerSource":"This Response is Coming From Chatgpt"}
@@ -398,21 +405,43 @@ class SaveQuestionAnswer(APIView):
     def post(self,request, format=None):
         response=request.data.get("Response")
         user_id=request.data.get('user_id')
-      
+        
         if not user_id:
             return Response({"message":"user is required"})
         if not User.objects.filter(id=user_id).exists():
             return Response({"message":"user does not  is exist"})
+        
+        # get the data from the Response:
         for data in response:
             question=data['question']
             answer=data['answer']
             label=data['label']
             if not question and not answer and not label:
                 return Response({"message":"Data Not Found"})
-            if not Topic.objects.filter(topic_name = label).exists():
-                topic_save=Topic.objects.create(topic_name=label)
+            
+            # get all topic name.
+            allalbels=Topic.objects.all().values('topic_name')
+            labels=[data['topic_name'] for data in allalbels ]
+            
+            best_match = None
+            best_similarity = 0
+            for item in labels:
+                similarity = fuzz.ratio(label, item)
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = item
+                    
+            # comare the similarirty between response label and existing labe.
+            if best_similarity >= 55:
+                existing_label = best_match
+                print(existing_label)
+            else:
+                existing_label = label
+            print("similarity----------->>>>",best_similarity) 
+            if not Topic.objects.filter(topic_name = existing_label).exists():
+                topic_save=Topic.objects.create(topic_name=existing_label)
                 topic_save.save()
-            filter_topic_id= Topic.objects.filter(topic_name=label).values("id")
+            filter_topic_id= Topic.objects.filter(topic_name=existing_label).values("id")
             topic_id = filter_topic_id[0]['id']
             user = User.objects.get(id=user_id)
             saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
@@ -440,23 +469,3 @@ class ShowAllData(APIView):
             })
         return Response(response_data)
     
- 
-class local_save(APIView):
-    def get(self,request, format=None):
-        df=pd.read_csv("/home/codenomad/Desktop/wiagenproject/local_question_answer.csv")
-        df.drop(df.index[-10:], inplace=True)
-        print(df.head())
-        user_id = 1
-        user = User.objects.get(id=user_id)
-        for index , row in df.iterrows():
-            question=row["Question"]
-            answer=row["Answer"]
-            topic_id=row["Topic"]
-            print(topic_id)
-            if Topic.objects.filter(id=topic_id).exists:
-                QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
-        return Response({"message":"API run Correct"})
-  
-
-
-
