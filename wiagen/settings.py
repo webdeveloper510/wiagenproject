@@ -183,8 +183,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:8000",   
     "https://127.0.0.1:8000",
-    "http://16.16.179.199:8000",
-    "http://16.16.179.199"
+    "http://13.48.127.191:8000",
+    "http://13.48.127.191"
 
 ]
 
@@ -196,6 +196,6 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
 # BASE_URL='http://127.0.0.1:8000/static'
-BASE_URL='http://16.16.179.199:8000/static'
+BASE_URL='http://13.48.127.191:8000/static'
 
 API_KEY=""   

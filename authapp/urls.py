@@ -18,6 +18,8 @@ urlpatterns = [
     path('urldata/',GetALLUrls.as_view()),
     path('SaveData/',SaveQuestionAnswer.as_view()),
     path('ShowData/<int:user_id>/',ShowAllData.as_view()),
+    path('trainmodel/',Train_model.as_view()),
+
 ]
 
 if settings.DEBUG:
