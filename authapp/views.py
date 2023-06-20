@@ -48,6 +48,7 @@ import spacy
 import nltk
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
+import pickle
 stemmer=PorterStemmer()
 import sentencepiece
 openai.api_key=settings.API_KEY
@@ -118,11 +119,10 @@ class LogoutUser(APIView):
 class TechnologiesView(APIView):
     # model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
     # model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    # saved_label="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.json"
-    
+    # cluster_label_path='/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl'
     model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
     model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    saved_label="/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.json"
+    cluster_label_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl"
     
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
@@ -185,21 +185,22 @@ class TechnologiesView(APIView):
             TopicName=(topicvalue[0]['topic_name'])
             data_dict={"Topic":TopicName,"question":question,"answer":answer}
             array.append(data_dict)
+            
         data=[dict['question'] for dict in array]
         # Tokenizer data.
-        MAX_NB_WORDS = 1000
+        MAX_NB_WORDS = 10000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
         oov_token = "<OOV>"
-        tokenizer = Tokenizer(num_words=MAX_NB_WORDS, oov_token = "<OOV>", lower=True)
+        tokenizer = Tokenizer(num_words=MAX_NB_WORDS,filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', oov_token = "<OOV>", lower=True)
         tokenizer.fit_on_texts(data)
         word_index = tokenizer.word_index
         
-        
         # get the json labels
-        with open(self.saved_label, "r") as json_file:
-            cluster_label = json.load(json_file)
-            
+        with open(self.cluster_label_path, "rb") as file:
+            cluster_labels = pickle.load(file)
+        
+        print("Cluster----------------------------->>>>>",cluster_labels)  
         # Load Saved Model.
         json_file = open(self.model_path, 'r')
         loaded_model_json = json_file.read()
@@ -213,12 +214,12 @@ class TechnologiesView(APIView):
         clean_user_input=self.clean_text(user_input)
         new_input_tokenizer = tokenizer.texts_to_sequences([clean_user_input])
         new_input = pad_sequences(new_input_tokenizer, maxlen=MAX_SEQUENCE_LENGTH) 
-        
+
         # Make Prediction
         pred =loaded_model.predict(new_input)
-        databasew_match=pred, cluster_label[np.argmax(pred)]
+        databasew_match=pred, cluster_labels[np.argmax(pred)]
         result=databasew_match[1]
-        
+        print('Result------------------->>>',result)
         # Get the answer based on the question.
         filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
         get_all_questions=[dict['question'] for dict in filter_data] 
@@ -228,12 +229,16 @@ class TechnologiesView(APIView):
         input_vector = vectorizer.transform([clean_user_input])
         
         # check the similarity of the model
-        similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
+        # similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
+        similarity_scores = question_vectors.dot(input_vector.T).toarray().flatten()  # Ensure 1-dimensional array
         max_sim_index = np.argmax(similarity_scores)
         similarity_percentage = similarity_scores[max_sim_index] * 100
         print('Similarity---------------->>>>',similarity_percentage)
         if (similarity_percentage)>=65:
             answer = filter_data[max_sim_index]['answer']
+            if Topic.objects.filter(topic_name=result).exists():
+                userLabel_data=Topic.objects.filter(topic_name=result).order_by('-id').values_list('topic_name')
+
             if not Topic.objects.filter(topic_name=result).exists():
                 userLabel_data=Topic.objects.create(topic_name=result)
             response_data = {
@@ -436,26 +441,27 @@ class SaveQuestionAnswer(APIView):
             # get all topic name.
             allalbels=Topic.objects.all().values('topic_name')
             labels=[data['topic_name'] for data in allalbels ]
+            print('Labels---------------->>>>',labels)
             
             best_match = None
             best_similarity = 0
             for item in labels:
                 similarity = fuzz.ratio(label, item)
+                
                 if similarity > best_similarity:
                     best_similarity = similarity
                     best_match = item
                     
             # comare the similarirty between response label and existing labe.
-            if best_similarity >= 55:
-                existing_label = best_match
-                print(existing_label)
+            if best_similarity >= 50:
+                get_label = best_match
+                print(get_label)
             else:
-                existing_label = label
-            print("similarity----------->>>>",best_similarity) 
-            if not Topic.objects.filter(topic_name = existing_label).exists():
-                topic_save=Topic.objects.create(topic_name=existing_label)
+                get_label = label
+            if not Topic.objects.filter(topic_name = get_label).exists():
+                topic_save=Topic.objects.create(topic_name=get_label)
                 topic_save.save()
-            filter_topic_id= Topic.objects.filter(topic_name=existing_label).values("id")
+            filter_topic_id= Topic.objects.filter(topic_name=get_label).values("id")
             topic_id = filter_topic_id[0]['id']
             user = User.objects.get(id=user_id)
             saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
@@ -499,64 +505,55 @@ class Train_model(APIView):
             TopicName=(topicvalue[0]['topic_name'])
             data_dict={"Topic":TopicName,"question":question,"answer":answer}
             array.append(data_dict)
-            
-        # get all questions of data.
-        Questions=[dict['question'] for dict in array]
         
+        Questions=[dict['question'] for dict in array]
+
         # define the parameter for model.
-        MAX_NB_WORDS =10000
+        MAX_NB_WORDS = 10000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
         oov_token = "<OOV>"
-        tokenizer = Tokenizer(num_words=MAX_NB_WORDS,oov_token = "<OOV>", lower=True)
+        tokenizer = Tokenizer(num_words=MAX_NB_WORDS,filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~',oov_token = "<OOV>", lower=True)
         tokenizer.fit_on_texts(Questions)
         word_index = tokenizer.word_index
         sequence= tokenizer.texts_to_sequences(Questions)
-        
         ## Create input for model
-        Input_X=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)
+        input_data=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)             # input 
         
         # convert label into dummies using LabelEncoder.
         Y_data=[dict['Topic'] for dict in array]
         lbl_encoder = LabelEncoder()
         lbl_encoder.fit(Y_data)
-        output_Y = lbl_encoder.transform(Y_data)
-        
-        cluster_label=[]     ### Create a list for detect value of label.
-        
-        ## check the which label have get which number or dummies value.
-        class_mapping = dict(zip(lbl_encoder.classes_, lbl_encoder.transform(lbl_encoder.classes_)))
-        for label, numerical_label in class_mapping.items():
-           cluster_label.append(label)
-        # get the num class for define the Dense layer.
-        num_class=len(cluster_label)  
+        output_Y = lbl_encoder.transform(Y_data) 
         
         
+        cluster_label = lbl_encoder.classes_.tolist()
+        num_class=len(cluster_label)
+          
         # define the layers for sequential model.
         model = Sequential()
         model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=MAX_SEQUENCE_LENGTH))
         model.add(GlobalAveragePooling1D())
-        model.add(Dense(32, activation='relu'))
-        model.add(Dense(16, activation='relu'))
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(64, activation='relu'))
         model.add(Dense(num_class, activation='softmax'))
 
-        model.compile(loss='sparse_categorical_crossentropy', 
-                    optimizer='adam', metrics=['accuracy'])
-
+        model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
         epochs = 800
-        batch_size=64
-        
-        # train the model
-        history = model.fit(Input_X, np.array(output_Y), epochs=epochs, batch_size=batch_size)
-       
-        # Save Model
+        batch_size=128
+        model.fit(input_data, np.array(output_Y), epochs=epochs, batch_size=batch_size)
+
+        # # Save Model
         model_json=model.to_json()
-        with open("var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
+        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
+        # with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
             json_file.write(model_json)
-        model.save_weights("var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
-        # Save cluster_label list
-        with open("var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.json", "w") as json_file:
-            json.dump(cluster_label, json_file)
+        model.save_weights("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
+        # Save the cluster label list
+        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
+            pickle.dump(cluster_label, file)
+
         return Response({"message":"Model Trained and Saved with successfully."})
 
 

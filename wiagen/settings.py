@@ -104,7 +104,8 @@ WSGI_APPLICATION = 'wiagen.wsgi.application'
 DATABASES = {
     'default': {
     'ENGINE': 'django.db.backends.mysql', 
-    'NAME': 'Technology',
+    # 'NAME': 'Technology',
+    'NAME': 'Zacharey',
     'USER': 'root',
     # 'PASSWORD': '', 
     'PASSWORD': 'admin@123', 
