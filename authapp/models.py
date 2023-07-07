@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import *
 
 #custom User Manager
+
+
 class UserManager(BaseUserManager):
     def create_user(self, email, firstname, lastname, password=None):
         
@@ -118,3 +120,6 @@ class User_PDF(models.Model):
     
 class UrlTable(models.Model):
     url=models.CharField(max_length=200,blank=True,null=True)
+    
+class databaseName(models.Model):
+    database_name=models.CharField(max_length=200, null=True, blank=True)

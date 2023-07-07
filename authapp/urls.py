@@ -11,7 +11,9 @@ urlpatterns = [
     path('userprofile/', ProfileView.as_view(),name='profile'),
     path('logout/', LogoutUser.as_view(),name='logout'),
     path('adminscrapping/', views.AdminScraping.as_view()),
-    path('prediction/',TechnologiesView.as_view()),
+    path('prediction1/',prediction1.as_view()),
+    path('prediction2/',prediction2.as_view()),
+     path('finalprediction/',finalPrediction.as_view()),
     path('label/',GetLabelByUser_id.as_view()),
     path('pdfresult/',PDFReaderView.as_view()),
     path('pdfdata/',GetAllPdf.as_view()),
@@ -19,6 +21,8 @@ urlpatterns = [
     path('SaveData/',SaveQuestionAnswer.as_view()),
     path('ShowData/<int:user_id>/',ShowAllData.as_view()),
     path('trainmodel/',Train_model.as_view()),
+    path('twodatabase/',TrainSecondDatabase.as_view()),
+    path('hitme/',finalTrainModel.as_view()),
 
 ]
 

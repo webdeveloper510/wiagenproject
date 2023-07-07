@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'secondapp',
 ]
 
 REST_FRAMEWORK = {
@@ -59,10 +60,12 @@ REST_FRAMEWORK = {
        ]
 }
 
+
 REST_FRAMEWORK = {
-      'DEFAULT_AUTHENTICATION_CLASSES': (
-          'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
 }
 
 
@@ -104,18 +107,32 @@ WSGI_APPLICATION = 'wiagen.wsgi.application'
 DATABASES = {
     'default': {
     'ENGINE': 'django.db.backends.mysql', 
-    # 'NAME': 'Technology',
-    'NAME': 'Zacharey',
+    'NAME': 'Technology',
     'USER': 'root',
     # 'PASSWORD': '', 
     'PASSWORD': 'admin@123', 
-    'HOST': 'localhost', # Or an IP Address that your DB is hosted on
+    'HOST': 'localhost',
+    'PORT': '3306',
+    'OPTIONS': {
+            'read_default_file': '/opt/lampp/etc/my.cnf',
+        }
+    },
+    
+    'second_db': {
+    'ENGINE': 'django.db.backends.mysql', 
+    'NAME': 'second_database',
+    'USER': 'root',
+    # 'PASSWORD': '', 
+    'PASSWORD': 'admin@123', 
+    'HOST': 'localhost',
     'PORT': '3306',
     'OPTIONS': {
             'read_default_file': '/opt/lampp/etc/my.cnf',
         }
     }
 }
+DATABASE_ROUTERS = ['wiagen.routers.AuthRouter', 'wiagen.routers.SecondRouter']
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -184,8 +201,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:8000",   
     "https://127.0.0.1:8000",
-    "http://13.48.127.191:8000",
-    "http://13.48.127.191"
+    "http://13.53.234.84:8000",
+    "http://13.53.234.84"
 
 ]
 
@@ -197,6 +214,6 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
 # BASE_URL='http://127.0.0.1:8000/static'
-BASE_URL='http://13.48.127.191:8000/static'
+BASE_URL='http://13.53.234.84:8000/static'
 
-API_KEY=""   
+API_KEY="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"   

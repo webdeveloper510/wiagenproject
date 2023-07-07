@@ -62,3 +62,15 @@ class User_PDFSerializer(serializers.ModelSerializer):
            
     def create(self, validate_data):
         return User_PDF.objects.create(**validate_data)
+    
+class databasenameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= databaseName
+        fields = '__all__'
+           
+    def create(self, validate_data):
+        return databaseName.objects.create(**validate_data)
+
+
+
+           
