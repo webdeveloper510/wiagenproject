@@ -60,8 +60,8 @@ from secondapp.models import *
 from secondapp.serializers import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
-url="http://127.0.0.1:8000/static/media/"
-# url="http://13.53.234.84/:8000/static/media/"
+# url="http://127.0.0.1:8000/static/media/"
+url="http://13.53.234.84/:8000/static/media/"
 
 
 #Creating tokens manually
@@ -330,8 +330,8 @@ class prediction2(APIView):
         similarity_percentage = similarity_scores[max_sim_index] * 100
         if (similarity_percentage)>=65:
             answer = filter_data[max_sim_index]['answer']               
-            if not Topic.objects.filter(topic_name=result).exists():
-                userLabel_data=Topic.objects.create(topic_name=result)
+            if not Topic2.objects.using('second_db').filter(topic_name=result).exists():
+                userLabel_data=Topic2.objects.using('second_db').create(topic_name=result)
             response_data = {
                 "Question":user_input,
                 "Label": result,
@@ -342,8 +342,8 @@ class prediction2(APIView):
         else:
             input=user_input.title()
             label=self.technology.automaticgetlabel(input)
-            if not Topic.objects.filter(topic_name=label).exists():
-                userLabel_data=Topic.objects.create(topic_name=label.strip())
+            if not Topic2.objects.using("second_db").filter(topic_name=label).exists():
+                userLabel_data=Topic2.objects.using('second_db').create(topic_name=label.strip())
             response=self.technology.chatgpt(input)
             response_data = {
                 "Question":user_input,
@@ -398,47 +398,75 @@ class AdminScraping(APIView):
         return qa_pairs
     
     def post(self, request, format=None):
+        database_name=request.data.get("database_id")
+        database = databaseName.objects.filter(id=database_name).values('database_name')
+        database = database[0]['database_name']
         url = request.data.get("url")
         if not url:
             return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
-        else :
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+        if database == "default":
+            print("Database 1 is here -------------------------------->>.")
+
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0;  Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
             url_data=UrlTable.objects.create(url=url)
             response = requests.get(url,headers=headers)
             soup = BeautifulSoup(response.text, "html.parser")
             all_text = soup.get_text()
-            if all_text=="":
-                return Response({"message":"No Data Found"},status=status.HTTP_200_OK)
-            else:
-                all_text = re.sub(r'\s+', ' ', all_text).strip()
-                model_name = "allenai/t5-small-squad2-question-generation"
-                tokenizer = T5Tokenizer.from_pretrained(model_name)
-                model = T5ForConditionalGeneration.from_pretrained(model_name)
-                extracted_data =self.clean_text(all_text)
-                qa_pairs = self.split_text_into_qa_pairs(extracted_data)
-                questions =self.run_model([pair[1] for pair in qa_pairs],tokenizer,model, max_new_tokens=256)
-                generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
-                response_data = {"QA_Pairs": []}
-                for i, (question, answer) in enumerate(generated_qa_pairs):
-                    technologiesview=prediction1()
-                    label=technologiesview.automaticgetlabel(question.title())
-                    response_data["QA_Pairs"].append({
-                        "Question": question.strip(),
-                        "Answer": answer.strip(),
-                        "Label": label.strip()})
-                return Response(response_data)
+        else:
+            print("Database 2 is here -------------------------------->>.")
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+            url_data=UrlTable2.objects.using('second_db').create(url=url)
+            response = requests.get(url,headers=headers)
+            soup = BeautifulSoup(response.text, "html.parser")
+            all_text = soup.get_text()
+        
+        if all_text=="":
+            return Response({"message":"No Data Found"},status=status.HTTP_200_OK)
+        else:
+            all_text = re.sub(r'\s+', ' ', all_text).strip()
+            model_name = "allenai/t5-small-squad2-question-generation"
+            tokenizer = T5Tokenizer.from_pretrained(model_name)
+            model = T5ForConditionalGeneration.from_pretrained(model_name)
+            extracted_data =self.clean_text(all_text)
+            qa_pairs = self.split_text_into_qa_pairs(extracted_data)
+            questions =self.run_model([pair[1] for pair in qa_pairs],tokenizer,model, max_new_tokens=256)
+            generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
+            response_data = {"QA_Pairs": []}
+            for i, (question, answer) in enumerate(generated_qa_pairs):
+                technologiesview=prediction1()
+                label=technologiesview.automaticgetlabel(question.title())
+                response_data["QA_Pairs"].append({
+                    "Question": question.strip(),
+                    "Answer": answer.strip(),
+                    "Label": label.strip()})
+            return Response(response_data)
     
 class GetLabelByUser_id(APIView):
     def get(self, request ,format=None):
-            userlabel= Topic.objects.all().values_list('id','topic_name').order_by("-id")
+        database_name=request.data.get("database_id")
+        database = databaseName.objects.filter(id=database_name).values('database_name')
+        database = database[0]['database_name']
+        if database == "default":
+            database1_label= Topic.objects.all().values_list('id','topic_name').order_by("-id")
             unique_id=[]
             unique_label=[]
-            for label in userlabel:
+            for label in database1_label:
                 if label[1] not in unique_label:
                     if label[0] not in unique_id:
                         unique_label.append(label[1])
                         unique_id.append(label[0])
             return Response({"unique_id":unique_id,"unique_label":unique_label})
+        else:
+            database1_label= Topic2.objects.using('second_db').all().values_list('id','topic_name').order_by("-id")
+            unique_id=[]
+            unique_label=[]
+            for label in database1_label:
+                if label[1] not in unique_label:
+                    if label[0] not in unique_id:
+                        unique_label.append(label[1].strip())
+                        unique_id.append(label[0])
+            return Response({"unique_id":unique_id,"unique_label":unique_label})
+            
 
 
 class PDFReaderView(APIView):
@@ -477,13 +505,28 @@ class PDFReaderView(APIView):
         return qa_pairs
     def post(self,request, format=None):
         pdffile=  request.FILES.get("pdf")
-        pdffile_data=User_PDF.objects.create(pdf=pdffile,pdf_filename=pdffile.name)
-        serializer=User_PDFSerializer(data=pdffile_data)
-        pdffile_data.save()
-        full_url = urljoin(url, pdffile_data.pdf.name)
-        pdf_path=pdffile_data.pdf.path
-        pdffile_data.pdf = full_url
-        pdffile_data.save()
+        database_name=request.data.get("database_id")
+        database = databaseName.objects.filter(id=database_name).values('database_name')
+        database = database[0]['database_name']
+        if database == "default":
+            print('HERE Database1---------------->>>')
+            database1_pdffile=User_PDF.objects.create(pdf=pdffile,pdf_filename=pdffile.name)
+            serializer=User_PDFSerializer(data=database1_pdffile)
+            database1_pdffile.save()
+            full_url = urljoin(url, database1_pdffile.pdf.name)
+            pdf_path=database1_pdffile.pdf.path
+            database1_pdffile.pdf = full_url
+            database1_pdffile.save()
+        else:
+            print('HERE DATABASE2-------------------->>>')
+            database2_pdffile=User_PDF2.objects.using('second_db').create(pdf=pdffile,pdf_filename=pdffile.name)
+            serializer=User_PDF2Serializer(data=database2_pdffile)
+            database2_pdffile.save()
+            full_url = urljoin(url, database2_pdffile.pdf.name)
+            pdf_path=database2_pdffile.pdf.path
+            database2_pdffile.pdf = full_url
+            database2_pdffile.save()
+            
         model_name = "allenai/t5-small-squad2-question-generation"
         tokenizer = T5Tokenizer.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(model_name)
@@ -501,24 +544,57 @@ class PDFReaderView(APIView):
                 "Answer": answer.strip(),
                 "Label": label.strip()})
         return Response(response_data)
-    
+
 class GetAllPdf(APIView):
-    def get(self, request, format=None):
-            pdffiles= User_PDF.objects.all().values('pdf_filename','pdf').order_by('-id')
-            pdffilename=[]
-            pdfdownload=[]
-            for pdf in pdffiles:
-                if pdf['pdf_filename'] not in pdffilename:
-                    pdffilename.append(pdf['pdf_filename'])
-                    pdfdownload.append(pdf['pdf'])
-            if pdffilename:
-                return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
+    def post(self, request, format=None):
+            selected_database=request.data.get("database_id")
+            database=databaseName.objects.filter(id=selected_database).values('database_name')
+            database=database[0]['database_name']
+            if database=="default":
+                pdffiles= User_PDF.objects.all().values('pdf_filename','pdf').order_by('-id')
+                pdffilename=[]
+                pdfdownload=[]
+                for pdf in pdffiles:
+                    if pdf['pdf_filename'] not in pdffilename:
+                        pdffilename.append(pdf['pdf_filename'])
+                        pdfdownload.append(pdf['pdf'])
+                if pdffilename:
+                    return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
+                else:
+                    return Response({'data':"Pdf Does Not Exist"})
             else:
-                return Response({'data':"Pdf Does Not Exist"})
+                pdffiles= User_PDF2.objects.using('second_db').all().values('pdf_filename','pdf').order_by('-id')
+                pdffilename=[]
+                pdfdownload=[]
+                for pdf in pdffiles:
+                    if pdf['pdf_filename'] not in pdffilename:
+                        pdffilename.append(pdf['pdf_filename'])
+                        pdfdownload.append(pdf['pdf'])
+                if pdffilename:
+                    return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
+                else:
+                    return Response({'data':"Pdf Does Not Exist"})
+                
 
 class GetALLUrls(APIView):
-    def get(self, request, format=None):
+    def post(self, request, format=None):
+        selected_database=request.data.get("database_id")
+        database=databaseName.objects.filter(id=selected_database).values('database_name')
+        database=database[0]['database_name']
+        if database=="default":
+            print("First")
             Allurl= UrlTable.objects.all().values('url').order_by('-id')
+            url_list=[]
+            for url in Allurl:
+                if url not in url_list :
+                    url_list.append(url)
+            if url_list:
+                return Response({'labels': list(url_list)})
+            else:
+                return Response({'data':"Url Does Not Found"})
+        else:
+            print("second")
+            Allurl= UrlTable2.objects.using('second_db').all().values('url').order_by('-id')
             url_list=[]
             for url in Allurl:
                 if url not in url_list :
@@ -598,31 +674,45 @@ class SaveQuestionAnswer(APIView):
                     topic_save.save()
                 filter_topic_id= Topic2.objects.using('second_db').filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
-                # user = User.objects.get(id=user_id)
-                saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id)
+                user = User.objects.get(id=user_id)
+                saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id,user_id=user)
                 saveQuesAns.save()
         return Response({"message":"Data Save Sucessfully"})
 
 class ShowAllData(APIView):
     def post(self, request,user_id, format=None):
+        selected_database=request.data.get("database_id")
+        database=databaseName.objects.filter(id=selected_database).values('database_name')
+        database=database[0]['database_name']
         user_id=request.data.get('user_id')
-        
-        print("user_id",user_id)
-        if not user_id:
-            return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
-        
         label_id = request.data.get("id")   ## GET TOPIC ID
+        if not user_id:
+                return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
         if not Topic.objects.filter(id=label_id).exists():
             return Response({"message": "Data Not Found"})
-        questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
-        answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
-        response_data = []
-        for question_data, answer_data in zip(questions, answers):
-            response_data.append({
-                "Question": question_data["question"],
-                "Answer": answer_data["answer"]
-            })
-        return Response(response_data)
+        
+        if database=="default":
+            print("First DATABASE ")
+            questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
+            answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
+            response_data = []
+            for question_data, answer_data in zip(questions, answers):
+                response_data.append({
+                    "Question": question_data["question"],
+                    "Answer": answer_data["answer"]
+                })
+            return Response(response_data)
+        else:
+            print("second DATABASE ")
+            questions = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("question")
+            answers = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("answer")
+            response_data = []
+            for question_data, answer_data in zip(questions, answers):
+                response_data.append({
+                    "Question": question_data["question"],
+                    "Answer": answer_data["answer"]
+                })
+            return Response(response_data)
     
 class Train_model(APIView):
     def post(self,request,format=None):
