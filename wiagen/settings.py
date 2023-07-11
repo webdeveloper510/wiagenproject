@@ -60,14 +60,11 @@ REST_FRAMEWORK = {
        ]
 }
 
-
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
-    ],
+      'DEFAULT_AUTHENTICATION_CLASSES': (
+          'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
 }
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -109,8 +106,8 @@ DATABASES = {
     'ENGINE': 'django.db.backends.mysql', 
     'NAME': 'Technology',
     'USER': 'root',
-    # 'PASSWORD': '', 
-    'PASSWORD': 'admin@123', 
+    'PASSWORD': '', 
+    # 'PASSWORD': 'admin@123', 
     'HOST': 'localhost',
     'PORT': '3306',
     'OPTIONS': {
@@ -122,8 +119,8 @@ DATABASES = {
     'ENGINE': 'django.db.backends.mysql', 
     'NAME': 'second_database',
     'USER': 'root',
-    # 'PASSWORD': '', 
-    'PASSWORD': 'admin@123', 
+    'PASSWORD': '', 
+    # 'PASSWORD': 'admin@123', 
     'HOST': 'localhost',
     'PORT': '3306',
     'OPTIONS': {
@@ -213,7 +210,7 @@ STATICFILES_DIRS = [
 STATIC_URL = '/static/'
 MEDIA_ROOT = BASE_DIR /"static/media"
 MEDIA_URL = "/media/"
-# BASE_URL='http://127.0.0.1:8000/static'
-BASE_URL='http://13.53.234.84:8000/static'
+BASE_URL='http://127.0.0.1:8000/static'
+# BASE_URL='http://13.53.234.84:8000/static'
 
 API_KEY="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"   

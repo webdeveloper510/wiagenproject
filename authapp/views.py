@@ -60,8 +60,8 @@ from secondapp.models import *
 from secondapp.serializers import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
-# url="http://127.0.0.1:8000/static/media/"
-url="http://13.53.234.84/:8000/static/media/"
+url="http://127.0.0.1:8000/static/media/"
+# url="http://13.53.234.84/:8000/static/media/"
 
 
 #Creating tokens manually
@@ -112,8 +112,6 @@ class ProfileView(APIView):
         return Response(serializer.data,status=status.HTTP_200_OK)
 
 
-
-
 class LogoutUser(APIView):
     renderer_classes = [UserRenderer]
     permission_classes=[IsAuthenticated]
@@ -121,12 +119,12 @@ class LogoutUser(APIView):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
     
 class prediction1(APIView):
-    # model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    # model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    # cluster_label_path='/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl'
-    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    cluster_label_path="/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl"
+    model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    cluster_label_path='/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl'
+    # model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
+    # model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
+    # cluster_label_path="/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl"
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
         BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
@@ -264,12 +262,12 @@ class prediction1(APIView):
         
         
 class prediction2(APIView):
-    # model2_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json"
-    # model2_weight_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
-    # cluster_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
-    model2_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model.json"
-    model2_weight_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
-    cluster_path="/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
+    model2_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json"
+    model2_weight_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
+    cluster_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
+    # model2_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model.json"
+    # model2_weight_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
+    # cluster_path="/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
     technology=prediction1()
     
     def post(self,request,user_input):
@@ -682,15 +680,15 @@ class Train_model(APIView):
 
         # # Save Model
         model_json=model.to_json()
-        # with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
-        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
+        with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
+        # with open("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
             json_file.write(model_json)
-        # model.save_weights("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
-        model.save_weights("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
+        model.save_weights("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
+        # model.save_weights("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
 
         # Save the cluster label list
-        # with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
-        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
+        with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
+        # with open("/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
 
             pickle.dump(cluster_label, file)
 
@@ -698,8 +696,6 @@ class Train_model(APIView):
 
 
 class TrainSecondDatabase(APIView):
-    # authentication_classes=[TokenAuthentication]
-    # permission_classes = [IsAuthenticated]
     technologies=prediction1()
     clean_preprocess=technologies.clean_text
     chatgpt_model=technologies.chatgpt
@@ -753,16 +749,16 @@ class TrainSecondDatabase(APIView):
         
         # # Save Model
         model_json=model.to_json()
-        # with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
-        with open("/var/www/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
+        with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
+        # with open("/var/www/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
 
             json_file.write(model_json)
         model.save_weights("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model_weights.h5")
-        model.save_weights("/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5")
+        # model.save_weights("/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5")
 
         # Save the cluster label list
-        # with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
-        with open("/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
+        with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
+        # with open("/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
 
             pickle.dump(cluster_label, file)
         
@@ -777,7 +773,10 @@ class finalTrainModel(APIView):
         if database=="default":
             classCall = Train_model()
             classCall.post(request)
+            return Response({"message":"Model Train Successfully"})
         else:
             second=TrainSecondDatabase()
             second.post(request)
+            return Response({"message":"Model Train Successfully"})
+
             

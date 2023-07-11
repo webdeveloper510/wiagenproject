@@ -22,7 +22,7 @@ urlpatterns = [
     path('ShowData/<int:user_id>/',ShowAllData.as_view()),
     path('trainmodel/',Train_model.as_view()),
     path('twodatabase/',TrainSecondDatabase.as_view()),
-    path('hitme/',finalTrainModel.as_view()),
+    path('finaltrainmodel/',finalTrainModel.as_view()),
 
 ]
 
