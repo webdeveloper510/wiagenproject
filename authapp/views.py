@@ -442,10 +442,11 @@ class AdminScraping(APIView):
             return Response(response_data)
     
 class GetLabelByUser_id(APIView):
-    def get(self, request ,format=None):
+    def post(self, request ,format=None):
         database_name=request.data.get("database_id")
         database = databaseName.objects.filter(id=database_name).values('database_name')
         database = database[0]['database_name']
+        print('dTAAAAAAA------------->>>',database)
         if database == "default":
             database1_label= Topic.objects.all().values_list('id','topic_name').order_by("-id")
             unique_id=[]
@@ -870,3 +871,48 @@ class finalTrainModel(APIView):
             return Response({"message":"Model Train Successfully"})
 
             
+class label_delete(APIView):
+    def post(self,request, format=None):
+        label_id=request.data.get("label_id")
+        database_name=request.data.get('database_id')
+        database = databaseName.objects.filter(id=database_name).values('database_name')
+        database = database[0]['database_name']
+        if database == "default":
+            if not QuestionAndAnswr.objects.filter(topic_id=label_id).exists():
+                return Response({"message":"No Data Found"})
+            else:
+                delete_all_data= QuestionAndAnswr.objects.filter(topic_id=label_id).delete()
+                deleted_label = Topic.objects.filter(id=label_id).delete()
+                return Response({"message":"Data is deleted"})
+        else:
+            if not database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).exists():
+                return Response({"message":"No Data Found"})
+            else:
+                delete_all_data= database2QuestionAndAnswr.objects.using("second_db").filter(topic_id=label_id).delete()
+                deleted_label = Topic2.objects.using("second_db").filter(id=label_id).delete()
+                return Response({"message":"Data is deleted"})
+            
+class question_delete(APIView):
+    def post(self,request, format=None):
+        question_id=request.data.get("question_id")
+        database_name=request.data.get('database_id')
+        database = databaseName.objects.filter(id=database_name).values('database_name')
+        database = database[0]['database_name']
+        if database == "default":
+            print('Database------1')
+            if not QuestionAndAnswr.objects.filter(id=question_id).exists():
+                return Response({"message":"No Data Found"})
+            else:
+                delete_all_data= QuestionAndAnswr.objects.filter(id=question_id).delete()
+                return Response({"message":"Data is deleted"})
+        else:
+            print('Database------2')
+            if not database2QuestionAndAnswr.objects.using('second_db').filter(id=question_id).exists():
+                return Response({"message":"No Data Found"})
+            else:
+                delete_all_data= database2QuestionAndAnswr.objects.using("second_db").filter(id=question_id).delete()
+                return Response({"message":"Data is deleted"})
+            
+       
+        
+        

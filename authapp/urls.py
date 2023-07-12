@@ -13,7 +13,7 @@ urlpatterns = [
     path('adminscrapping/', views.AdminScraping.as_view()),
     path('prediction1/',prediction1.as_view()),
     path('prediction2/',prediction2.as_view()),
-     path('finalprediction/',finalPrediction.as_view()),
+    path('finalprediction/',finalPrediction.as_view()),
     path('label/',GetLabelByUser_id.as_view()),
     path('pdfresult/',PDFReaderView.as_view()),
     path('pdfdata/',GetAllPdf.as_view()),
@@ -22,7 +22,11 @@ urlpatterns = [
     path('ShowData/<int:user_id>/',ShowAllData.as_view()),
     path('trainmodel/',Train_model.as_view()),
     path('twodatabase/',TrainSecondDatabase.as_view()),
-    path('finaltrainmodel/',finalTrainModel.as_view()),
+    path('finaltrainmodel/',finalTrainModel.as_view()),   
+    path('deletelabel/',label_delete.as_view()),
+    path('deletequestion/',question_delete.as_view()),
+
+
 
 ]
 
