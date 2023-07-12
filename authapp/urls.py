@@ -19,7 +19,7 @@ urlpatterns = [
     path('pdfdata/',GetAllPdf.as_view()),
     path('urldata/',GetALLUrls.as_view()),
     path('SaveData/',SaveQuestionAnswer.as_view()),
-    path('ShowData/<int:user_id>/',ShowAllData.as_view()),
+    path('ShowData/',ShowAllData.as_view()),
     path('trainmodel/',Train_model.as_view()),
     path('twodatabase/',TrainSecondDatabase.as_view()),
     path('finaltrainmodel/',finalTrainModel.as_view()),   

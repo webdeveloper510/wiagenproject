@@ -685,10 +685,7 @@ class ShowAllData(APIView):
         selected_database=request.data.get("database_id")
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
-        user_id=request.data.get('user_id')
         label_id = request.data.get("id")   ## GET TOPIC ID
-        if not user_id:
-                return Response({'message':'user_id is required'},status=status.HTTP_400_BAD_REQUEST)
         if not Topic.objects.filter(id=label_id).exists():
             return Response({"message": "Data Not Found"})
         
@@ -696,22 +693,27 @@ class ShowAllData(APIView):
             print("First DATABASE ")
             questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
             answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
+            id= QuestionAndAnswr.objects.filter(topic_id=label_id).values("id")
             response_data = []
-            for question_data, answer_data in zip(questions, answers):
+            for question_data, answer_data ,id_data in zip(questions, answers,id):
                 response_data.append({
                     "Question": question_data["question"],
-                    "Answer": answer_data["answer"]
+                    "Answer": answer_data["answer"],
+                    "id":id_data["id"]
                 })
             return Response(response_data)
         else:
             print("second DATABASE ")
             questions = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("question")
             answers = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("answer")
+            id = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("id")
+
             response_data = []
-            for question_data, answer_data in zip(questions, answers):
+            for question_data, answer_data ,id_data in zip(questions, answers,id):
                 response_data.append({
                     "Question": question_data["question"],
-                    "Answer": answer_data["answer"]
+                    "Answer": answer_data["answer"],
+                    "id": id_data["id"]
                 })
             return Response(response_data)
     
