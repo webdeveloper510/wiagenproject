@@ -48,6 +48,7 @@ import pdfplumber
 from django.contrib.auth import login
 import spacy
 import nltk
+from keybert import KeyBERT
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
 import pickle
@@ -61,7 +62,7 @@ from secondapp.serializers import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
 # url="http://127.0.0.1:8000/static/media/"
-url="http://13.53.234.84/:8000/static/media/"
+url="http://13.53.234.84:8000/static/media/"
 
 
 #Creating tokens manually
@@ -149,35 +150,11 @@ class prediction1(APIView):
         )
         output= response.choices[0].text
         return output
-    def automaticgetlabel(self, input):
-        doc = nlp(input)
-        merged_text = []
-        label_found = False
-        label_length = 0
-        max_label_length = 3
-
-        for word in doc.ents:
-            if word.label_ in ["GPE", "ORG", "LOC", "PERSON", "MONEY", "ORDINAL", "PRODUCT", "NORP", "FAC", "EVENT", "WORK_OF_ART", "LAW", "LANGUAGE", "PERCENT", "QUANTITY", "CARDINALS"]:
-                merged_text.append(word.text.title())
-                label_found = True
-        
-        label = " ".join(merged_text)
-        if not label_found or label.strip() == "":
-            alternative_label = []
-            for token in doc:
-                if token.pos_ == "PROPN" or token.ent_type_ == "PERSON":
-                    alternative_label.append(token.text.title())
-                if token.pos_ == "NNP":
-                    alternative_label.append(token.text.title())
-                if token.pos_ == "VERB":
-                    alternative_label.append(token.text.title())
-
-            if alternative_label:
-                alternative_label.sort(key=lambda x: len(x), reverse=True)
-                label = " ".join(alternative_label[:max_label_length])
-            else:
-                label = "No Label Found"
-        return label
+    def automaticgetlabel(self, text):
+        kw_model = KeyBERT()
+        keywords = kw_model.extract_keywords(text)
+        keyword= kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english',top_n=1)
+        return keyword
 
     
     def post(self, request,user_input):
@@ -248,11 +225,15 @@ class prediction1(APIView):
             return response_data
 
         else:
-            input=user_input.title()
-            label=self.automaticgetlabel(input)
-            if not Topic.objects.filter(topic_name=label).exists():
-                userLabel_data=Topic.objects.create(topic_name=label.strip())
-            response=self.chatgpt(input)
+            input = user_input
+            response = self.chatgpt(input)
+            get_label = self.automaticgetlabel(input)
+            title_label=get_label[0][0]
+            label=title_label.title()
+            if not Topic.objects.filter(topic_name=label.capitalize()).exists():
+                userLabel_data = Topic.objects.create(topic_name=label.capitalize())
+            print("Response---------->>>",response)
+            print("Response_label---------->>>",label)
             response_data = {
                 "Question":user_input,
                 "Label": label,
@@ -285,7 +266,7 @@ class prediction2(APIView):
             array.append(data_dict)
         Questions=[dict['question'] for dict in array]
         # define the parameter for model.
-        MAX_NB_WORDS = 1000
+        MAX_NB_WORDS = 10000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
         oov_token = "<OOV>"
@@ -340,16 +321,18 @@ class prediction2(APIView):
             return response_data
         
         else:
-            input=user_input.title()
-            label=self.technology.automaticgetlabel(input)
+            input = user_input
+            response = self.technology.chatgpt(input)
+            get_label = self.technology.automaticgetlabel(input)
+            title_label=get_label[0][0]
+            label=title_label.title()
             if not Topic2.objects.using("second_db").filter(topic_name=label).exists():
                 userLabel_data=Topic2.objects.using('second_db').create(topic_name=label.strip())
-            response=self.technology.chatgpt(input)
             response_data = {
                 "Question":user_input,
                 "Label": label,
                 "Answer": response,
-                "AnswerSource":"This Response is Coming From Chatgpt 2"}
+                "AnswerSource":"This Response is Coming From Chatgpt 1"}
             return response_data
         
 class finalPrediction(APIView):
@@ -401,6 +384,7 @@ class AdminScraping(APIView):
         database_name=request.data.get("database_id")
         database = databaseName.objects.filter(id=database_name).values('database_name')
         database = database[0]['database_name']
+        print("DATABASE------------------------>>>>>",database)
         url = request.data.get("url")
         if not url:
             return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
@@ -434,7 +418,9 @@ class AdminScraping(APIView):
             response_data = {"QA_Pairs": []}
             for i, (question, answer) in enumerate(generated_qa_pairs):
                 technologiesview=prediction1()
-                label=technologiesview.automaticgetlabel(question.title())
+                get_label=technologiesview.automaticgetlabel(answer)
+                title_label=get_label[0][0]
+                label=title_label.title()
                 response_data["QA_Pairs"].append({
                     "Question": question.strip(),
                     "Answer": answer.strip(),
@@ -539,7 +525,11 @@ class PDFReaderView(APIView):
         response_data = {"QA_Pairs": []}
         for i, (question, answer) in enumerate(generated_qa_pairs):
             technologiesview=prediction1()
-            label=technologiesview.automaticgetlabel(question.title())
+            print('Answer------------>>>>',answer)
+            get_label=technologiesview.automaticgetlabel(answer)
+            title_label=get_label[0][0]
+            label=title_label.title()
+            print('label---------------->>>',label)
             response_data["QA_Pairs"].append({
                 "Question": question.strip(),
                 "Answer": answer.strip(),
@@ -640,8 +630,8 @@ class SaveQuestionAnswer(APIView):
                     get_label = best_match
                 else:
                     get_label = label
-                if not Topic.objects.filter(topic_name = get_label).exists():
-                    topic_save=Topic.objects.create(topic_name=get_label)
+                if not Topic.objects.filter(topic_name = get_label.title()).exists():
+                    topic_save=Topic.objects.create(topic_name=get_label.title())
                     topic_save.save()
                 filter_topic_id= Topic.objects.filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
@@ -675,13 +665,12 @@ class SaveQuestionAnswer(APIView):
                     topic_save.save()
                 filter_topic_id= Topic2.objects.using('second_db').filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
-                user = User.objects.get(id=user_id)
-                saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id,user_id=user)
+                saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id)
                 saveQuesAns.save()
         return Response({"message":"Data Save Sucessfully"})
 
 class ShowAllData(APIView):
-    def post(self, request,user_id, format=None):
+    def post(self, request, format=None):
         selected_database=request.data.get("database_id")
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
@@ -808,7 +797,7 @@ class TrainSecondDatabase(APIView):
         
         Questions=[dict['question'] for dict in array]
         # define the parameter for model.
-        MAX_NB_WORDS = 1000
+        MAX_NB_WORDS = 10000
         MAX_SEQUENCE_LENGTH =200
         EMBEDDING_DIM = 100
         oov_token = "<OOV>"
@@ -880,19 +869,13 @@ class label_delete(APIView):
         database = databaseName.objects.filter(id=database_name).values('database_name')
         database = database[0]['database_name']
         if database == "default":
-            if not QuestionAndAnswr.objects.filter(topic_id=label_id).exists():
-                return Response({"message":"No Data Found"})
-            else:
-                delete_all_data= QuestionAndAnswr.objects.filter(topic_id=label_id).delete()
-                deleted_label = Topic.objects.filter(id=label_id).delete()
-                return Response({"message":"Data is deleted"})
+            delete_all_data= QuestionAndAnswr.objects.filter(topic_id=label_id).delete()
+            deleted_label = Topic.objects.filter(id=label_id).delete()
+            return Response({"message":"Data is deleted"})
         else:
-            if not database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).exists():
-                return Response({"message":"No Data Found"})
-            else:
-                delete_all_data= database2QuestionAndAnswr.objects.using("second_db").filter(topic_id=label_id).delete()
-                deleted_label = Topic2.objects.using("second_db").filter(id=label_id).delete()
-                return Response({"message":"Data is deleted"})
+            delete_all_data2= database2QuestionAndAnswr.objects.using("second_db").filter(topic_id=label_id)
+            deleted_label2= Topic2.objects.using("second_db").filter(id=label_id).delete()
+            return Response({"message":"Data is deleted"})
             
 class question_delete(APIView):
     def post(self,request, format=None):

@@ -213,4 +213,4 @@ MEDIA_URL = "/media/"
 # BASE_URL='http://127.0.0.1:8000/static'
 BASE_URL='http://13.53.234.84:8000/static'
 
-API_KEY="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"   
+API_KEY=""   
