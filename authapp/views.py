@@ -670,11 +670,12 @@ class ShowAllData(APIView):
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
         label_id = request.data.get("id")   ## GET TOPIC ID
-        if not Topic.objects.filter(id=label_id).exists():
-            return Response({"message": "Data Not Found"})
-        
+        print("Label_id------------>>>",label_id)
+        print("Database------------>>>",selected_database)
         if database=="default":
             print("First DATABASE ")
+            if not Topic.objects.filter(id=label_id).exists():
+                return Response({"message": "Data Not Found"})
             questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
             answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
             id= QuestionAndAnswr.objects.filter(topic_id=label_id).values("id")
@@ -687,6 +688,8 @@ class ShowAllData(APIView):
                 })
             return Response(response_data)
         else:
+            if not Topic2.objects.using("second_db").filter(id=label_id).exists():
+                return Response({"message": "Data Not Found"})
             print("second DATABASE ")
             questions = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("question")
             answers = database2QuestionAndAnswr.objects.using('second_db').filter(topic_id=label_id).values("answer")
