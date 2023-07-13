@@ -332,7 +332,7 @@ class prediction2(APIView):
                 "Question":user_input,
                 "Label": label,
                 "Answer": response,
-                "AnswerSource":"This Response is Coming From Chatgpt 1"}
+                "AnswerSource":"This Response is Coming From Chatgpt 2"}
             return response_data
         
 class finalPrediction(APIView):
@@ -597,17 +597,13 @@ class GetALLUrls(APIView):
 
 class SaveQuestionAnswer(APIView):
     def post(self, request, format=None):
+        print("here")
         response = request.data.get("Response")
-        user_id = request.data.get('user_id')
+        print("response------------------>>>>",response)
         select_database = request.data.get("database_id")
         database = databaseName.objects.filter(id=select_database).values('database_name')
         database = database[0]['database_name']
         if database == "default":
-            if not user_id:
-                return Response({"message": "user is required"})
-            if not User.objects.filter(id=user_id).exists():
-                return Response({"message": "user does not exist"})
-            # get the data from the response:
             for data in response:
                 question=data['question']
                 answer=data['answer']
@@ -625,7 +621,6 @@ class SaveQuestionAnswer(APIView):
                     if similarity > best_similarity:
                         best_similarity = similarity
                         best_match = item
-        #         # comare the similarirty between response label and existing labe.
                 if best_similarity >= 50:
                     get_label = best_match
                 else:
@@ -635,8 +630,8 @@ class SaveQuestionAnswer(APIView):
                     topic_save.save()
                 filter_topic_id= Topic.objects.filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
-                user = User.objects.get(id=user_id)
-                saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id,user_id=user)
+                saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id)
+
                 saveQuesAns.save()
         else:
             for data in response:
