@@ -227,9 +227,10 @@ class prediction1(APIView):
         else:
             input = user_input
             response = self.chatgpt(input)
-            get_label = self.automaticgetlabel(input)
+            get_label = self.automaticgetlabel(response)
             title_label=get_label[0][0]
             label=title_label.title()
+                
             if not Topic.objects.filter(topic_name=label.capitalize()).exists():
                 userLabel_data = Topic.objects.create(topic_name=label.capitalize())
             print("Response---------->>>",response)
@@ -416,11 +417,25 @@ class AdminScraping(APIView):
             questions =self.run_model([pair[1] for pair in qa_pairs],tokenizer,model, max_new_tokens=256)
             generated_qa_pairs = list(zip(questions, [pair[1] for pair in qa_pairs]))
             response_data = {"QA_Pairs": []}
+            
             for i, (question, answer) in enumerate(generated_qa_pairs):
                 technologiesview=prediction1()
                 get_label=technologiesview.automaticgetlabel(answer)
-                title_label=get_label[0][0]
-                label=title_label.title()
+                if len(get_label) > 0:
+                    title_label = get_label[0][0]
+                    print("Title------------------>>>>", title_label)
+                    label = title_label.title()
+                else:
+                    label="Label Not Found"
+                #     doc = nlp(answer)
+                #     # Merge consecutive NOUN tokens
+                #     merged_text = []
+                #     for word in doc.ents:
+                #         if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or "PersonType" or "Medical" or "Sports" or "Event" or "Skill" or "Product" or "Address" or "Email" or "DateTime":
+                #             merged_text.append(word.text.title())
+                # sentence = " ".join(merged_text)
+                # label=sentence
+                
                 response_data["QA_Pairs"].append({
                     "Question": question.strip(),
                     "Answer": answer.strip(),
@@ -686,7 +701,10 @@ class ShowAllData(APIView):
                     "Answer": answer_data["answer"],
                     "id":id_data["id"]
                 })
-            return Response(response_data)
+            if response_data:
+                return Response(response_data)
+            else:
+                return Response({"message":"Data Not Found"})
         else:
             if not Topic2.objects.using("second_db").filter(id=label_id).exists():
                 return Response({"message": "Data Not Found"})
@@ -702,7 +720,11 @@ class ShowAllData(APIView):
                     "Answer": answer_data["answer"],
                     "id": id_data["id"]
                 })
-            return Response(response_data)
+            if response_data:
+                return Response(response_data)
+            else:
+                return Response({"message":"Data Not Found"})
+            # return Response(response_data)
     
 class Train_model(APIView):
     def post(self,request,format=None):
