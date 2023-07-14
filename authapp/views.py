@@ -675,6 +675,7 @@ class SaveQuestionAnswer(APIView):
                     topic_save.save()
                 filter_topic_id= Topic2.objects.using('second_db').filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
+                
                 saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id)
                 saveQuesAns.save()
         return Response({"message":"Data Save Sucessfully"})
