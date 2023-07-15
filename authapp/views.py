@@ -453,13 +453,16 @@ class GetLabelByUser_id(APIView):
             unique_id=[]
             unique_label=[]
             for label in database1_label:
-                if label[1] not in unique_label:
-                    if label[0] not in unique_id:
-                        unique_label.append(label[1])
-                        unique_id.append(label[0])
+                if QuestionAndAnswr.objects.filter(topic_id=label[0]).exists():
+                    if label[1] not in unique_label:
+                        
+                            
+                            unique_label.append(label[1])
+                            unique_id.append(label[0])
             return Response({"unique_id":unique_id,"unique_label":unique_label})
         else:
             database1_label= Topic2.objects.using('second_db').all().values_list('id','topic_name').order_by("-id")
+            
             unique_id=[]
             unique_label=[]
             for label in database1_label:
@@ -544,7 +547,6 @@ class PDFReaderView(APIView):
             get_label=technologiesview.automaticgetlabel(answer)
             title_label=get_label[0][0]
             label=title_label.title()
-            print('label---------------->>>',label)
             response_data["QA_Pairs"].append({
                 "Question": question.strip(),
                 "Answer": answer.strip(),
@@ -618,35 +620,39 @@ class SaveQuestionAnswer(APIView):
         select_database = request.data.get("database_id")
         database = databaseName.objects.filter(id=select_database).values('database_name')
         database = database[0]['database_name']
+        # get_label=""
         if database == "default":
             for data in response:
-                question=data['question']
-                answer=data['answer']
-                label=data['label']
+                question = data['question']
+                answer = data['answer']
+                label = data['label']
                 if not question and not answer and not label:
-                    return Response({"message":"Data Not Found"})
-                
-                # get all topic name.
-                allalbels=Topic.objects.all().values('topic_name')
-                labels=[data['topic_name'] for data in allalbels ]
+                    return Response({"message": "Data Not Found"})
+
+                # Get all topic names.
+                all_labels = Topic.objects.all().values('topic_name')
+                labels = [data['topic_name'] for data in all_labels]
                 best_match = None
                 best_similarity = 0
+
                 for item in labels:
                     similarity = fuzz.ratio(label, item)
-                    if similarity > best_similarity:
-                        best_similarity = similarity
+                    if 50 <= similarity <= 90:
                         best_match = item
-                if best_similarity >= 50:
+                        break  # Exit the loop after finding the first matching label
+                print('best match---------->',best_match)
+                if best_match:
                     get_label = best_match
+                    update=Topic.objects.filter(topic_name=label).update(topic_name=get_label.title())
                 else:
                     get_label = label
-                if not Topic.objects.filter(topic_name = get_label.title()).exists():
-                    topic_save=Topic.objects.create(topic_name=get_label.title())
+                if not Topic.objects.filter(topic_name=get_label.title()).exists():
+                    topic_save = Topic.objects.create(topic_name=get_label.title())
                     topic_save.save()
-                filter_topic_id= Topic.objects.filter(topic_name=get_label).values("id")
-                topic_id = filter_topic_id[0]['id']
-                saveQuesAns=QuestionAndAnswr.objects.create(question=question,answer=answer,topic_id=topic_id)
 
+                filter_topic_id = Topic.objects.filter(topic_name=get_label.title()).values("id")
+                topic_id = filter_topic_id[0]['id']
+                saveQuesAns = QuestionAndAnswr.objects.create(question=question, answer=answer, topic_id=topic_id)
                 saveQuesAns.save()
         else:
             for data in response:
@@ -662,12 +668,13 @@ class SaveQuestionAnswer(APIView):
                 best_similarity = 0
                 for item in access_labels:
                     similarity = fuzz.ratio(label, item)
-                    if similarity > best_similarity:
-                        best_similarity = similarity
+                    if 60 <= similarity <= 90:
                         best_match = item
-        #         # comare the similarirty between response label and existing labe.
-                if best_similarity >= 50:
+                        break  # Exit the loop after finding the first matching label
+                print('best match---------->',best_match)
+                if best_match:
                     get_label = best_match
+                    update=Topic2.objects.using('second_db').filter(topic_name=label).update(topic_name=get_label.title())
                 else:
                     get_label = label
                 if not Topic2.objects.using('second_db').filter(topic_name = get_label.title()).exists():
