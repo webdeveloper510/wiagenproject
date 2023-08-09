@@ -23,7 +23,7 @@ class UserManager(BaseUserManager):
        
         user = self.create_user(
             email,
-            firstname= "None",
+            firstname= "None",  
             lastname= "None",
             password=password,
         )
@@ -107,7 +107,7 @@ class UserDataModels(models.Model):
 class Topic(models.Model):
     topic_name=models.CharField(max_length=200,null=True,blank=True)
 
-class QuestionAndAnswr(models.Model):
+class QuestionAndAnswer(models.Model):
     topic=models.ForeignKey(Topic,on_delete=models.CASCADE)
     question=models.TextField(max_length=1000)
     answer=models.TextField(max_length=1000)
@@ -122,3 +122,7 @@ class UrlTable(models.Model):
     
 class databaseName(models.Model):
     database_name=models.CharField(max_length=200, null=True, blank=True)
+
+class UserdatabaseName(models.Model):
+    database_name=models.CharField(max_length=200, null=True, blank=True)
+    user=models.ForeignKey(User,on_delete=models.CASCADE)

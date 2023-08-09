@@ -25,11 +25,12 @@ urlpatterns = [
     path('finaltrainmodel/',finalTrainModel.as_view()),   
     path('deletelabel/',label_delete.as_view()),
     path('deletequestion/',question_delete.as_view()),
-
-
-
+    # USER API's
+    path('createdatabase/',createuserdatabase.as_view()),
+    path('userdatabase/',TrainUserDatabase.as_view()),
+    path('alluserdata/',GetUserDatabase.as_view()),
+    path('userprediction/',UserPrediction.as_view()),
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)

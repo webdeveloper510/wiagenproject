@@ -19,7 +19,6 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import re
-import csv
 import pandas as pd
 import numpy as np
 translator = Translator()
@@ -29,9 +28,7 @@ from numpy import loadtxt
 from rest_framework.authentication import TokenAuthentication
 from keras.models import load_model
 from keras.models import Sequential,model_from_json 
-from keras.callbacks import EarlyStopping
 from keras.layers import LSTM, Dense,Dropout ,Embedding,SpatialDropout1D,GlobalAveragePooling1D 
-from nltk.stem import PorterStemmer, WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 from keras.utils import to_categorical
@@ -52,7 +49,8 @@ from keybert import KeyBERT
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
 import pickle
-stemmer=PorterStemmer()
+import sys
+import mysql.connector
 import sentencepiece
 openai.api_key=settings.API_KEY
 nlp = spacy.load('en_core_web_sm')
@@ -61,8 +59,8 @@ from secondapp.models import *
 from secondapp.serializers import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
-# url="http://127.0.0.1:8000/static/media/"
-url="http://13.53.234.84:8000/static/media/"
+url="http://127.0.0.1:8000/static/media/"
+# url="http://13.53.234.84:8000/static/media/"
 
 
 #Creating tokens manually
@@ -79,8 +77,13 @@ class UserRegistrationView(APIView):
         serializer=UserRegistrationSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user=serializer.save()
+            database_name= f"{serializer.data['firstname']}{serializer.data['id']}db"
+            User_Id=User.objects.get(id=serializer.data['id'])
+            datadb=UserdatabaseName.objects.create(database_name=database_name,user=User_Id)
+            datadb.save()
             return Response({'message':'Registation successful',"status":"status.HTTP_200_OK"})
         return Response({errors:serializer.errors},status=status.HTTP_400_BAD_REQUEST)
+        
  
 class UserLoginView(APIView):
     renderer_classes=[UserRenderer]
@@ -118,14 +121,12 @@ class LogoutUser(APIView):
     permission_classes=[IsAuthenticated]
     def post(self, request, format=None):
         return Response({'message':'Logout Successfully','status':'status.HTTP_200_OK'})
-    
+
+## Admin Prediction Question Answer From Database 1.
 class prediction1(APIView):
-    # model_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    # model_weight_path="/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    # cluster_label_path='/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl'
-    model_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json"
-    model_weight_path="/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5"
-    cluster_label_path="/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl"
+    model_path=os.getcwd()+"/authapp/saved_file/saved_model/classification_model.json"
+    model_weight_path=os.getcwd()+"/authapp/saved_file/saved_model/classification_model_weights.h5"
+    cluster_label_path=os.getcwd()+'/authapp/saved_file/saved_model/cluster_labels.pkl'
     def clean_text(self,text):
         REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')     
         BAD_SYMBOLS_RE = re.compile('[^0-9a-z #+_]')
@@ -138,6 +139,7 @@ class prediction1(APIView):
         text=text.replace('x','')
         text=' '.join(word for word in text.split() if word not in STOPWORDS)
         return text
+    
     def chatgpt(self,input):
         response = openai.Completion.create(
         model="text-davinci-003",
@@ -155,11 +157,10 @@ class prediction1(APIView):
         keywords = kw_model.extract_keywords(text)
         keyword= kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english',top_n=1)
         return keyword
-
     
     def post(self, request,user_input):
-        service = QuestionAndAnswr.objects.all().order_by('id')
-        serializer = QuestionAndAnswrSerializer(service, many=True)
+        service = QuestionAndAnswer.objects.all().order_by('id')
+        serializer = QuestionAndAnswerSerializer(service, many=True)
         array=[]
         for x in serializer.data:
             topic_id=x["topic"]
@@ -207,7 +208,6 @@ class prediction1(APIView):
         vectorizer.fit(get_all_questions)
         question_vectors = vectorizer.transform(get_all_questions)                                  # 2. all questions
         input_vector = vectorizer.transform([clean_user_input])
-        
         # check the similarity of the model
         # similarity_scores = question_vectors.dot(input_vector.T).toarray().squeeze()
         similarity_scores = question_vectors.dot(input_vector.T).toarray().flatten()  # Ensure 1-dimensional array
@@ -215,8 +215,6 @@ class prediction1(APIView):
         similarity_percentage = similarity_scores[max_sim_index] * 100
         if (similarity_percentage)>=65:
             answer = filter_data[max_sim_index]['answer']               
-            if not Topic.objects.filter(topic_name=result).exists():
-                userLabel_data=Topic.objects.create(topic_name=result)
             response_data = {
                 "Question":user_input,
                 "Label": result,
@@ -230,11 +228,6 @@ class prediction1(APIView):
             get_label = self.automaticgetlabel(response)
             title_label=get_label[0][0]
             label=title_label.title()
-                
-            if not Topic.objects.filter(topic_name=label.capitalize()).exists():
-                userLabel_data = Topic.objects.create(topic_name=label.capitalize())
-            print("Response---------->>>",response)
-            print("Response_label---------->>>",label)
             response_data = {
                 "Question":user_input,
                 "Label": label,
@@ -242,16 +235,12 @@ class prediction1(APIView):
                 "AnswerSource":"This Response is Coming From Chatgpt 1"}
             return response_data
         
-        
+## Admin Prediction Question Answer From Database 2.
 class prediction2(APIView):
-    # model2_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json"
-    # model2_weight_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
-    # cluster_path="/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
-    model2_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model.json"
-    model2_weight_path="/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5"
-    cluster_path="/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl"
+    model2_path=os.getcwd()+"/secondapp/saved_model/2classification_model.json"
+    model2_weight_path=os.getcwd()+"/secondapp/saved_model/2classification_model_weights.h5"
+    cluster_path=os.getcwd()+"/secondapp/saved_model/2cluster_labels.pkl"
     technology=prediction1()
-    
     def post(self,request,user_input):
         print('DATABASE2')
         database2=database2QuestionAndAnswr.objects.using('second_db').all().order_by('id')
@@ -312,8 +301,6 @@ class prediction2(APIView):
         similarity_percentage = similarity_scores[max_sim_index] * 100
         if (similarity_percentage)>=65:
             answer = filter_data[max_sim_index]['answer']               
-            if not Topic2.objects.using('second_db').filter(topic_name=result).exists():
-                userLabel_data=Topic2.objects.using('second_db').create(topic_name=result)
             response_data = {
                 "Question":user_input,
                 "Label": result,
@@ -327,15 +314,14 @@ class prediction2(APIView):
             get_label = self.technology.automaticgetlabel(input)
             title_label=get_label[0][0]
             label=title_label.title()
-            if not Topic2.objects.using("second_db").filter(topic_name=label).exists():
-                userLabel_data=Topic2.objects.using('second_db').create(topic_name=label.strip())
             response_data = {
                 "Question":user_input,
                 "Label": label,
                 "Answer": response,
                 "AnswerSource":"This Response is Coming From Chatgpt 2"}
             return response_data
-        
+
+# Admin final Prediction API
 class finalPrediction(APIView):
     def post(self,request):
         selected_database=request.data.get("database_id")
@@ -346,12 +332,12 @@ class finalPrediction(APIView):
             database1 = prediction1()
             response = database1.post(request, user_input)
             return Response(response)
-
         else:
             database2=prediction2()
             response=database2.post(request,user_input)
             return Response(response)
 
+# Admin API for Make Question And Answer From the URL Text
 class AdminScraping(APIView):
     def run_model(self,input_strings,tokenizer,model,**generator_args):
         input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
@@ -391,7 +377,6 @@ class AdminScraping(APIView):
             return Response({"message":"url is required"},status=status.HTTP_400_BAD_REQUEST)
         if database == "default":
             print("Database 1 is here -------------------------------->>.")
-
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0;  Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
             url_data=UrlTable.objects.create(url=url)
             response = requests.get(url,headers=headers)
@@ -426,22 +411,14 @@ class AdminScraping(APIView):
                     print("Title------------------>>>>", title_label)
                     label = title_label.title()
                 else:
-                    label="Label Not Found"
-                #     doc = nlp(answer)
-                #     # Merge consecutive NOUN tokens
-                #     merged_text = []
-                #     for word in doc.ents:
-                #         if word.label_ == "GPE" or "ORG" or "LOC" or "PERSON" or "PersonType" or "Medical" or "Sports" or "Event" or "Skill" or "Product" or "Address" or "Email" or "DateTime":
-                #             merged_text.append(word.text.title())
-                # sentence = " ".join(merged_text)
-                # label=sentence
-                
+                    label="Label Not Found"                
                 response_data["QA_Pairs"].append({
                     "Question": question.strip(),
                     "Answer": answer.strip(),
                     "Label": label.strip()})
             return Response(response_data)
     
+# Admin API for Get Label
 class GetLabelByUser_id(APIView):
     def post(self, request ,format=None):
         database_name=request.data.get("database_id")
@@ -449,31 +426,13 @@ class GetLabelByUser_id(APIView):
         database = database[0]['database_name']
         print('dTAAAAAAA------------->>>',database)
         if database == "default":
-            database1_label= Topic.objects.all().values_list('id','topic_name').order_by("-id")
-            unique_id=[]
-            unique_label=[]
-            for label in database1_label:
-                if QuestionAndAnswr.objects.filter(topic_id=label[0]).exists():
-                    if label[1] not in unique_label:
-                        
-                            
-                            unique_label.append(label[1])
-                            unique_id.append(label[0])
-            return Response({"unique_id":unique_id,"unique_label":unique_label})
+            database1_label= Topic.objects.all().values().order_by("-id")
+            return Response({"database1_label":database1_label})
         else:
-            database1_label= Topic2.objects.using('second_db').all().values_list('id','topic_name').order_by("-id")
-            
-            unique_id=[]
-            unique_label=[]
-            for label in database1_label:
-                if label[1] not in unique_label:
-                    if label[0] not in unique_id:
-                        unique_label.append(label[1].strip())
-                        unique_id.append(label[0])
-            return Response({"unique_id":unique_id,"unique_label":unique_label})
-            
+            database2_label= Topic2.objects.using('second_db').all().values().order_by("-id")
+            return Response({"database2_label":database2_label})
 
-
+# Admin API for Make Question And Answer From the PDF Text
 class PDFReaderView(APIView):
     def run_model(self,input_strings, tokenizer ,model,**generator_args):
         input_ids = tokenizer.batch_encode_plus(input_strings, return_tensors="pt", padding=True, truncation=True)["input_ids"]
@@ -553,35 +512,18 @@ class PDFReaderView(APIView):
                 "Label": label.strip()})
         return Response(response_data)
 
+# Admin API For Get PDF From The Pdf Table in Database.
 class GetAllPdf(APIView):
     def post(self, request, format=None):
             selected_database=request.data.get("database_id")
             database=databaseName.objects.filter(id=selected_database).values('database_name')
             database=database[0]['database_name']
             if database=="default":
-                pdffiles= User_PDF.objects.all().values('pdf_filename','pdf').order_by('-id')
-                pdffilename=[]
-                pdfdownload=[]
-                for pdf in pdffiles:
-                    if pdf['pdf_filename'] not in pdffilename:
-                        pdffilename.append(pdf['pdf_filename'])
-                        pdfdownload.append(pdf['pdf'])
-                if pdffilename:
-                    return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
-                else:
-                    return Response({'data':"Pdf Does Not Exist"})
+                database1_pdffiles= User_PDF.objects.all().values().order_by('-id')
+                return Response({'database1_pdffiles':database1_pdffiles})
             else:
-                pdffiles= User_PDF2.objects.using('second_db').all().values('pdf_filename','pdf').order_by('-id')
-                pdffilename=[]
-                pdfdownload=[]
-                for pdf in pdffiles:
-                    if pdf['pdf_filename'] not in pdffilename:
-                        pdffilename.append(pdf['pdf_filename'])
-                        pdfdownload.append(pdf['pdf'])
-                if pdffilename:
-                    return Response({'pdffilename': pdffilename, 'pdfdownload': pdfdownload})
-                else:
-                    return Response({'data':"Pdf Does Not Exist"})
+                database2_pdffiles= User_PDF2.objects.using('second_db').all().values().order_by('-id')
+                return Response({'database2_pdffiles':database2_pdffiles})
                 
 
 class GetALLUrls(APIView):
@@ -590,28 +532,14 @@ class GetALLUrls(APIView):
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
         if database=="default":
-            print("First")
-            Allurl= UrlTable.objects.all().values('url').order_by('-id')
-            url_list=[]
-            for url in Allurl:
-                if url not in url_list :
-                    url_list.append(url)
-            if url_list:
-                return Response({'labels': list(url_list)})
-            else:
-                return Response({'data':"Url Does Not Found"})
+            database1_url= UrlTable.objects.all().values().order_by('-id')
+            return Response({'database1_url':database1_url})
         else:
             print("second")
-            Allurl= UrlTable2.objects.using('second_db').all().values('url').order_by('-id')
-            url_list=[]
-            for url in Allurl:
-                if url not in url_list :
-                    url_list.append(url)
-            if url_list:
-                return Response({'labels': list(url_list)})
-            else:
-                return Response({'data':"Url Does Not Found"})
+            database2_url= UrlTable2.objects.using('second_db').all().values().order_by('-id')
+            return Response({'database2_url':database2_url})
 
+# Admin API for Save Question Answer in Database.
 class SaveQuestionAnswer(APIView):
     def post(self, request, format=None):
         print("here")
@@ -628,13 +556,11 @@ class SaveQuestionAnswer(APIView):
                 label = data['label']
                 if not question and not answer and not label:
                     return Response({"message": "Data Not Found"})
-
                 # Get all topic names.
                 all_labels = Topic.objects.all().values('topic_name')
                 labels = [data['topic_name'] for data in all_labels]
                 best_match = None
                 best_similarity = 0
-
                 for item in labels:
                     similarity = fuzz.ratio(label, item)
                     if 50 <= similarity <= 90:
@@ -649,10 +575,9 @@ class SaveQuestionAnswer(APIView):
                 if not Topic.objects.filter(topic_name=get_label.title()).exists():
                     topic_save = Topic.objects.create(topic_name=get_label.title())
                     topic_save.save()
-
                 filter_topic_id = Topic.objects.filter(topic_name=get_label.title()).values("id")
                 topic_id = filter_topic_id[0]['id']
-                saveQuesAns = QuestionAndAnswr.objects.create(question=question, answer=answer, topic_id=topic_id)
+                saveQuesAns = QuestionAndAnswer.objects.create(question=question, answer=answer, topic_id=topic_id)
                 saveQuesAns.save()
         else:
             for data in response:
@@ -661,6 +586,7 @@ class SaveQuestionAnswer(APIView):
                 label=data['label']
                 if not question and not answer and not label:
                     return Response({"message":"Data Not Found"})
+                
                 # get all topic name.
                 All_labels=Topic2.objects.using('second_db').all().values('topic_name')
                 access_labels=[data['topic_name'].strip() for data in All_labels ]
@@ -668,10 +594,9 @@ class SaveQuestionAnswer(APIView):
                 best_similarity = 0
                 for item in access_labels:
                     similarity = fuzz.ratio(label, item)
-                    if 60 <= similarity <= 90:
+                    if 50 <= similarity <= 90:
                         best_match = item
                         break  # Exit the loop after finding the first matching label
-                print('best match---------->',best_match)
                 if best_match:
                     get_label = best_match
                     update=Topic2.objects.using('second_db').filter(topic_name=label).update(topic_name=get_label.title())
@@ -682,26 +607,24 @@ class SaveQuestionAnswer(APIView):
                     topic_save.save()
                 filter_topic_id= Topic2.objects.using('second_db').filter(topic_name=get_label).values("id")
                 topic_id = filter_topic_id[0]['id']
-                
                 saveQuesAns=database2QuestionAndAnswr.objects.using('second_db').create(question=question,answer=answer,topic_id=topic_id)
                 saveQuesAns.save()
         return Response({"message":"Data Save Sucessfully"})
 
+# Admin API For Showing Data based on the User ID
 class ShowAllData(APIView):
     def post(self, request, format=None):
         selected_database=request.data.get("database_id")
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
         label_id = request.data.get("id")   ## GET TOPIC ID
-        print("Label_id------------>>>",label_id)
-        print("Database------------>>>",selected_database)
         if database=="default":
             print("First DATABASE ")
             if not Topic.objects.filter(id=label_id).exists():
                 return Response({"message": "Data Not Found"})
-            questions = QuestionAndAnswr.objects.filter(topic_id=label_id).values("question")
-            answers = QuestionAndAnswr.objects.filter(topic_id=label_id).values("answer")
-            id= QuestionAndAnswr.objects.filter(topic_id=label_id).values("id")
+            questions = QuestionAndAnswer.objects.filter(topic_id=label_id).values("question")
+            answers = QuestionAndAnswer.objects.filter(topic_id=label_id).values("answer")
+            id= QuestionAndAnswer.objects.filter(topic_id=label_id).values("id")
             response_data = []
             for question_data, answer_data ,id_data in zip(questions, answers,id):
                 response_data.append({
@@ -734,11 +657,12 @@ class ShowAllData(APIView):
                 return Response({"message":"Data Not Found"})
             # return Response(response_data)
     
+# Admin API For Train Database 1 Data.
 class Train_model(APIView):
     def post(self,request,format=None):
         technologiesview=prediction1() 
-        get_data = QuestionAndAnswr.objects.all().order_by('id')
-        serializer = QuestionAndAnswrSerializer(get_data, many=True)
+        get_data = QuestionAndAnswer.objects.all().order_by('id')
+        serializer = QuestionAndAnswerSerializer(get_data, many=True)
         # create array with question ,answer and topic.
         array=[]
         for x in serializer.data:
@@ -790,21 +714,15 @@ class Train_model(APIView):
 
         # # Save Model
         model_json=model.to_json()
-        # with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
-        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
+        with open(os.getcwd()+"/authapp/saved_file/saved_model/classification_model.json", "w") as json_file:
             json_file.write(model_json)
-        # model.save_weights("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
-        model.save_weights("/var/www/wiagenproject/authapp/saved_file/saved_model/classification_model_weights.h5")
-
+        model.save_weights(os.getcwd()+"/authapp/saved_file/saved_model/classification_model_weights.h5")
         # Save the cluster label list
-        # with open("/home/codenomad/Desktop/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
-        with open("/var/www/wiagenproject/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
-
+        with open(os.getcwd()+"/authapp/saved_file/saved_model/cluster_labels.pkl", "wb") as file:
             pickle.dump(cluster_label, file)
-
         return Response({"message":"Model Trained and Saved with successfully."})
 
-
+# Admin API For Train Database 2 Data.
 class TrainSecondDatabase(APIView):
     technologies=prediction1()
     clean_preprocess=technologies.clean_text
@@ -853,25 +771,17 @@ class TrainSecondDatabase(APIView):
         model.add(Dense(num_class, activation='softmax'))
 
         model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
-        epochs = 500
+        epochs =800
         batch_size=128
         model.fit(input_data, np.array(output_Y), epochs=epochs, batch_size=batch_size)
-        
         # # Save Model
         model_json=model.to_json()
-        # with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
-        with open("/var/www/wiagenproject/secondapp/saved_model/2classification_model.json", "w") as json_file:
-
+        with open(os.getcwd()+"/secondapp/saved_model/2classification_model.json", "w") as json_file:
             json_file.write(model_json)
-        # model.save_weights("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2classification_model_weights.h5")
-        model.save_weights("/var/www/wiagenproject/secondapp/saved_model/2classification_model_weights.h5")
-
+        model.save_weights(os.getcwd()+"/secondapp/saved_model/2classification_model_weights.h5")
         # Save the cluster label list
-        # with open("/home/codenomad/Desktop/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
-        with open("/var/www/wiagenproject/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
-
+        with open(os.getcwd()+"/secondapp/saved_model/2cluster_labels.pkl", "wb") as file:
             pickle.dump(cluster_label, file)
-        
         return Response({'message':"Mode Train Accurate"})
     
     
@@ -889,7 +799,7 @@ class finalTrainModel(APIView):
             second.post(request)
             return Response({"message":"Model Train Successfully"})
 
-            
+# Admin API For Delete Label And related Question Answer       
 class label_delete(APIView):
     def post(self,request, format=None):
         label_id=request.data.get("label_id")
@@ -897,7 +807,7 @@ class label_delete(APIView):
         database = databaseName.objects.filter(id=database_name).values('database_name')
         database = database[0]['database_name']
         if database == "default":
-            delete_all_data= QuestionAndAnswr.objects.filter(topic_id=label_id).delete()
+            delete_all_data= QuestionAndAnswer.objects.filter(topic_id=label_id).delete()
             deleted_label = Topic.objects.filter(id=label_id).delete()
             return Response({"message":"Data is deleted"})
         else:
@@ -905,6 +815,7 @@ class label_delete(APIView):
             deleted_label2= Topic2.objects.using("second_db").filter(id=label_id).delete()
             return Response({"message":"Data is deleted"})
             
+# Admin API For Delete Question And related Question Answer       
 class question_delete(APIView):
     def post(self,request, format=None):
         question_id=request.data.get("question_id")
@@ -913,10 +824,10 @@ class question_delete(APIView):
         database = database[0]['database_name']
         if database == "default":
             print('Database------1')
-            if not QuestionAndAnswr.objects.filter(id=question_id).exists():
+            if not QuestionAndAnswer.objects.filter(id=question_id).exists():
                 return Response({"message":"No Data Found"})
             else:
-                delete_all_data= QuestionAndAnswr.objects.filter(id=question_id).delete()
+                delete_all_data= QuestionAndAnswer.objects.filter(id=question_id).delete()
                 return Response({"message":"Data is deleted"})
         else:
             print('Database------2')
@@ -926,6 +837,216 @@ class question_delete(APIView):
                 delete_all_data= database2QuestionAndAnswr.objects.using("second_db").filter(id=question_id).delete()
                 return Response({"message":"Data is deleted"})
             
-       
+            
+## User Related API's     
+class createuserdatabase(APIView):
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        try:
+            if not user_id:
+                return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "user_id is required"})
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "user does not exist"})
+            userdb = UserdatabaseName.objects.filter(user=user).values('database_name')
+            if not userdb:
+                return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "user database name not found"})
+            userdata_base_name = userdb[0]['database_name']
+            print("user_id---------->>>",userdata_base_name)
+            mydb = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password=""
+            )
+            mycursor = mydb.cursor()
+            mycursor.execute(f"CREATE DATABASE IF NOT EXISTS {userdata_base_name}")
+            
+            mydb = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database=userdata_base_name
+            )
+            mycursor = mydb.cursor()
+            # Create the Topic table if not exists
+            mycursor.execute("CREATE TABLE IF NOT EXISTS Topic (id INT AUTO_INCREMENT PRIMARY KEY, topic_name VARCHAR(255))")
+            
+            # Create the QuestionAndAnswer table if not exists
+            mycursor.execute("CREATE TABLE IF NOT EXISTS QuestionAndAnswer (id INT AUTO_INCREMENT PRIMARY KEY, user_id VARCHAR(255), topic_id INT, question TEXT, answer TEXT, FOREIGN KEY (topic_id) REFERENCES Topic(id))")
+            mydb.commit()
+            return Response({"status": status.HTTP_200_OK, "message": "Database and tables created successfully"})
+        except Exception as e:
+            return Response({"status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": str(e)})
+
+# User Database Train Model API's
+class TrainUserDatabase(APIView):
+    def post(self,request):
+        user_id=request.data.get("user_id")
+        userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
+        userdata_base_name=userdb[0]['database_name']
+        mydb = mysql.connector.connect(host="localhost",user="root",password="",database=userdata_base_name)
+        mycursor = mydb.cursor()
+        mycursor.execute("Select topic_id, question,answer From QuestionAndAnswer")
+        data=mycursor.fetchall()
+        array=[]
+        for record in data:
+            topic_id=record[0]
+            question=record[1]
+            answer=record[2]
+            mycursor.execute("SELECT topic_name FROM Topic WHERE id = %s", (topic_id,))
+            existing_topic = mycursor.fetchall()
+            
+            if existing_topic:
+                topic_name = existing_topic[0][0]  # Extract the topic_name from the fetched result
+                data_dict={"Topic":topic_name,"question":question,"answer":answer}
+                array.append(data_dict)
+        Questions=[dict['question'] for dict in array]
+        
+        # define the parameter for model.
+        MAX_NB_WORDS = 10000
+        MAX_SEQUENCE_LENGTH =200
+        EMBEDDING_DIM = 100
+        oov_token = "<OOV>"
+        tokenizer = Tokenizer(num_words=MAX_NB_WORDS,filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~',oov_token = "<OOV>", lower=True)
+        tokenizer.fit_on_texts(Questions)
+        word_index = tokenizer.word_index
+        sequence= tokenizer.texts_to_sequences(Questions)
+        ## Create input for model
+        input_data=pad_sequences(sequence, maxlen=MAX_SEQUENCE_LENGTH)             # input 
+        
+        # convert label into dummies using LabelEncoder.
+        Y_data=[dict['Topic'] for dict in array]
+        lbl_encoder = LabelEncoder()
+        lbl_encoder.fit(Y_data)
+        output_Y = lbl_encoder.transform(Y_data) 
         
         
+        cluster_label = lbl_encoder.classes_.tolist()
+        num_class=len(cluster_label)
+          
+        # define the layers for sequential model.
+        model = Sequential()
+        model.add(Embedding(MAX_NB_WORDS, EMBEDDING_DIM, input_length=MAX_SEQUENCE_LENGTH))
+        model.add(GlobalAveragePooling1D())
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(64, activation='relu'))
+        model.add(Dense(num_class, activation='softmax'))
+
+        model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
+        epochs = 1000
+        batch_size=128
+        model.fit(input_data, np.array(output_Y), epochs=epochs, batch_size=batch_size)
+        
+        # make directory with userdatabase name.
+        model_dir = os.path.join(os.getcwd(), "authapp", "saved_file", userdata_base_name)
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        # # Save Model
+        model_json=model.to_json()
+        with open(f"{model_dir}/classification_model.json", "w") as json_file:
+            json_file.write(model_json)
+        model.save_weights(f"{model_dir}/classification_model_weights.h5")
+        # Save the cluster label list
+        with open(f"{model_dir}/cluster_labels.pkl", "wb") as file:
+            pickle.dump(cluster_label, file)
+        return Response({"message":"Model Trained and Saved with successfully."})
+    
+# User Prediction Question And Answer
+class UserPrediction(APIView):
+    def post(self,request):
+        prediction=prediction1()
+        user_id=request.data.get("user_id")
+        user_input=request.data.get("user_input")
+        userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
+        userdata_base_name=userdb[0]['database_name']
+        mydb = mysql.connector.connect(host="localhost",user="root",password="",database=userdata_base_name)
+        mycursor = mydb.cursor()
+        mycursor.execute("Select topic_id, question,answer From QuestionAndAnswer")
+        data=mycursor.fetchall()
+        array=[]
+        for record in data:
+            topic_id=record[0]
+            question=record[1]
+            answer=record[2]
+            mycursor.execute("SELECT topic_name FROM Topic WHERE id = %s", (topic_id,))
+            existing_topic = mycursor.fetchall()
+            
+            if existing_topic:
+                topic_name = existing_topic[0][0]  # Extract the topic_name from the fetched result
+                data_dict={"Topic":topic_name,"question":question,"answer":answer}
+                array.append(data_dict)
+        Questions=[dict['question'] for dict in array]
+        
+        # define the parameter for model.
+        MAX_NB_WORDS = 10000
+        MAX_SEQUENCE_LENGTH =200
+        EMBEDDING_DIM = 100
+        oov_token = "<OOV>"
+        tokenizer = Tokenizer(num_words=MAX_NB_WORDS,filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~',oov_token = "<OOV>", lower=True)
+        tokenizer.fit_on_texts(Questions)
+        word_index = tokenizer.word_index
+        
+        # directory path
+        model_path=os.getcwd()+f"/authapp/saved_file/{userdata_base_name}/classification_model.json"
+        model_weight_path=os.getcwd()+f"/authapp/saved_file/{userdata_base_name}/classification_model_weights.h5"
+        cluster_label_path=os.getcwd()+f"/authapp/saved_file/{userdata_base_name}/cluster_labels.pkl"
+        
+        with open(cluster_label_path, "rb") as file:
+            cluster_labels = pickle.load(file)
+        # Load Saved Model.
+        json_file = open(model_path, 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        loaded_model = model_from_json(loaded_model_json)
+        loaded_model.load_weights(model_weight_path)
+        
+        # Take user input and preprocess as input
+        clean_user_input=prediction.clean_text(user_input)
+        new_input = tokenizer.texts_to_sequences([clean_user_input])
+        new_input = pad_sequences(new_input, maxlen=MAX_SEQUENCE_LENGTH) 
+
+        # Make Prediction
+        pred =loaded_model.predict(new_input)
+        databasew_match=pred, cluster_labels[np.argmax(pred)]
+        result=databasew_match[1]
+        
+        # Get the answer based on the question.
+        filter_data = [dict for dict in array if dict["Topic"].strip()== result.strip()]
+        get_all_questions=[dict['question'] for dict in filter_data] 
+        vectorizer = TfidfVectorizer()
+        vectorizer.fit(get_all_questions)
+        question_vectors = vectorizer.transform(get_all_questions)                                  # 2. all questions
+        input_vector = vectorizer.transform([clean_user_input])
+        # check the similarity of the model
+        similarity_scores = question_vectors.dot(input_vector.T).toarray().flatten()  # Ensure 1-dimensional array
+        max_sim_index = np.argmax(similarity_scores)
+        similarity_percentage = similarity_scores[max_sim_index] * 100
+        if (similarity_percentage)>=65:
+            answer = filter_data[max_sim_index]['answer']     
+            response_data = {
+                "Question":user_input,
+                "Label": result,
+                "Answer": answer,
+                "AnswerSource":f"This Response is Coming From {userdata_base_name}."}
+
+        else:
+            input = user_input
+            response = prediction.chatgpt(input)
+            get_label = prediction.automaticgetlabel(response)
+            title_label=get_label[0][0]
+            label=title_label.title()
+            response_data = {
+                "Question":user_input,
+                "Label": label,
+                "Answer": response,
+                "AnswerSource":"This Response is Coming From Chatgpt"}
+            return response_data
+        return Response({"message":response_data})
+    
+## Get All Created User Databases.
+class GetUserDatabase(APIView):
+    def post(self,request,format=None):
+        user_database= UserdatabaseName.objects.all().values()
+        return Response({"database_id":user_database})

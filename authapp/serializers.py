@@ -38,13 +38,13 @@ class TopicSerializer(serializers.ModelSerializer):
 
 
 
-class QuestionAndAnswrSerializer(serializers.ModelSerializer):
+class QuestionAndAnswerSerializer(serializers.ModelSerializer):
     class Meta:
-        model= QuestionAndAnswr
+        model= QuestionAndAnswer
         fields = '__all__'
            
     def create(self, validate_data):
-        return QuestionAndAnswr.objects.create(**validate_data)
+        return QuestionAndAnswer.objects.create(**validate_data)
     
 
 # class User_LabelSerializer(serializers.ModelSerializer):
