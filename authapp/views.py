@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from django.contrib.auth import authenticate
 from rest_framework import status
 import openai
+from django.db import DatabaseError
 import googletrans
 from googletrans import Translator
 from django.conf import settings
@@ -90,7 +91,6 @@ class UserRegistrationView(APIView):
             datadb.save()
             return Response({'message':'Registation successful',"status":"status.HTTP_200_OK",'user_id': user.id})
         return Response({errors:serializer.errors},status=status.HTTP_400_BAD_REQUEST)
-        
  
 class UserLoginView(APIView):
     renderer_classes=[UserRenderer]
@@ -868,13 +868,7 @@ class createuserdatabase(APIView):
             )
             mycursor = mydb.cursor()
             mycursor.execute(f"CREATE DATABASE IF NOT EXISTS {userdata_base_name}")
-            
-            mydb = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="",
-                database=userdata_base_name
-            )
+            mydb = connect_to_database(userdata_base_name)
             mycursor = mydb.cursor()
             # Create the Topic table if not exists
             mycursor.execute("CREATE TABLE IF NOT EXISTS Topic (id INT AUTO_INCREMENT PRIMARY KEY, topic_name VARCHAR(255))")
@@ -892,8 +886,8 @@ class TrainUserDatabase(APIView):
         user_id=request.data.get("user_id")
         userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
         userdata_base_name=userdb[0]['database_name']
-        mydb = mysql.connector.connect(host="localhost",user="root",password="",database=userdata_base_name)
-        mycursor = mydb.cursor()
+        mydb =connect_to_database()
+        mycursor = mydb.cursor(userdata_base_name)
         mycursor.execute("Select topic_id, question,answer From QuestionAndAnswer")
         data=mycursor.fetchall()
         array=[]
@@ -968,7 +962,7 @@ class UserPrediction(APIView):
         user_input=request.data.get("user_input")
         userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
         userdata_base_name=userdb[0]['database_name']
-        mydb = mysql.connector.connect(host="localhost",user="root",password="",database=userdata_base_name)
+        mydb = connect_to_database(userdata_base_name)
         mycursor = mydb.cursor()
         mycursor.execute("Select topic_id, question,answer From QuestionAndAnswer")
         data=mycursor.fetchall()
@@ -1037,7 +1031,6 @@ class UserPrediction(APIView):
                 "Label": result,
                 "Answer": answer,
                 "AnswerSource":f"This Response is Coming From {userdata_base_name}."}
-
         else:
             input = user_input
             response = prediction.chatgpt(input)
@@ -1058,9 +1051,7 @@ class GetUserDatabase(APIView):
         user_database= UserdatabaseName.objects.all().values()
         return Response({"user_database":user_database})
     
-    
 # API For Getting Label of USER.
-
 class UserLAbelShow(APIView):
     def post(self,request):
         user_id=request.data.get("user_id")
@@ -1070,12 +1061,61 @@ class UserLAbelShow(APIView):
         mycursor=mydb.cursor()
         mycursor.execute("Select id ,topic_name From Topic")
         data=mycursor.fetchall()
-        labels = []
-        for result in data:
-            label = {
-                "id": result[0],
-                "topic_name": result[1]
-            }
-            labels.append(label)
+        if data:
+            labels = []
+            for result in data:
+                label = {
+                    "id": result[0],
+                    "topic_name": result[1]
+                }
+                labels.append(label)
+            mydb.close()
+        else:
+            return Response({"data":"Data Not Found"})
+        return Response({"data":labels})
+    
+class ShowUserLabelDAta(APIView):
+    def post(self,request,format=None):
+        user_id=request.data.get("user_id")
+        label_id=request.data.get("label_id")
+        
+        userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
+        userdata_base_name=userdb[0]['database_name']
+        mydb = connect_to_database(userdata_base_name)
+        mycursor = mydb.cursor()
+        mycursor.execute("SELECT question, answer FROM QuestionAndAnswer WHERE topic_id= %s", (label_id,))
+        data = mycursor.fetchall()
         mydb.close()
+        if data:
+            print("data 0------>>",data[0])
+            question, answer = data[0]  
+            response_data = {
+                "Question": question,
+                "Answer": answer,
+                "id": label_id
+                }
+        else:
+            return Response({"data":"Data Not Found"})
+        return Response({"data": response_data})
+    
+class ShowAdminLabel(APIView):
+    def post(self,request):
+        database_id=request.data.get("database_id")
+        userdb=UserdatabaseName.objects.filter(id=database_id).values("database_name")
+        userdata_base_name=userdb[0]['database_name']
+        mydb=connect_to_database(userdata_base_name)
+        mycursor=mydb.cursor()
+        mycursor.execute("Select id ,topic_name From Topic")
+        data=mycursor.fetchall()
+        if data:
+            labels = []
+            for result in data:
+                label = {
+                    "id": result[0],
+                    "topic_name": result[1]
+                }
+                labels.append(label)
+            mydb.close()
+        else:
+            return Response({"data":"Data Not Found"})
         return Response({"data":labels})

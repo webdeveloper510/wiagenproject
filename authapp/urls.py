@@ -31,6 +31,9 @@ urlpatterns = [
     path('alluserdata/',GetUserDatabase.as_view()),
     path('userprediction/',UserPrediction.as_view()),
     path('userlabel/',UserLAbelShow.as_view()),
+    path('userlabeldata/',ShowUserLabelDAta.as_view()),
+    path('adminlabeldata/',ShowAdminLabel.as_view()),
+
 
 ]
 if settings.DEBUG:
