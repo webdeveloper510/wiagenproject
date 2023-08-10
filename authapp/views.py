@@ -59,8 +59,8 @@ from secondapp.models import *
 from secondapp.serializers import *
 from django.contrib.auth import get_user_model
 User = get_user_model()
-url="http://127.0.0.1:8000/static/media/"
-# url="http://13.53.234.84:8000/static/media/"
+# url="http://127.0.0.1:8000/static/media/"
+url="http://13.53.234.84:8000/static/media/"
 
 
 #Creating tokens manually
@@ -71,6 +71,13 @@ def get_tokens_for_user(user):
         'access': str(refresh.access_token),
     }
     
+def connect_to_database(user_database):
+    mydb = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database=user_database)
+    return mydb
 class UserRegistrationView(APIView):
     renderer_classes=[UserRenderer]
     def post(self,request,format=None):
@@ -81,7 +88,7 @@ class UserRegistrationView(APIView):
             User_Id=User.objects.get(id=serializer.data['id'])
             datadb=UserdatabaseName.objects.create(database_name=database_name,user=User_Id)
             datadb.save()
-            return Response({'message':'Registation successful',"status":"status.HTTP_200_OK"})
+            return Response({'message':'Registation successful',"status":"status.HTTP_200_OK",'user_id': user.id})
         return Response({errors:serializer.errors},status=status.HTTP_400_BAD_REQUEST)
         
  
@@ -426,11 +433,11 @@ class GetLabelByUser_id(APIView):
         database = database[0]['database_name']
         print('dTAAAAAAA------------->>>',database)
         if database == "default":
-            database1_label= Topic.objects.all().values().order_by("-id")
-            return Response({"database1_label":database1_label})
+            data= Topic.objects.all().values().order_by("-id")
+            return Response({"data":data})
         else:
-            database2_label= Topic2.objects.using('second_db').all().values().order_by("-id")
-            return Response({"database2_label":database2_label})
+            data= Topic2.objects.using('second_db').all().values().order_by("-id")
+            return Response({"data":data})
 
 # Admin API for Make Question And Answer From the PDF Text
 class PDFReaderView(APIView):
@@ -520,10 +527,10 @@ class GetAllPdf(APIView):
             database=database[0]['database_name']
             if database=="default":
                 database1_pdffiles= User_PDF.objects.all().values().order_by('-id')
-                return Response({'database1_pdffiles':database1_pdffiles})
+                return Response({'data':database1_pdffiles})
             else:
                 database2_pdffiles= User_PDF2.objects.using('second_db').all().values().order_by('-id')
-                return Response({'database2_pdffiles':database2_pdffiles})
+                return Response({'data':database2_pdffiles})
                 
 
 class GetALLUrls(APIView):
@@ -532,12 +539,12 @@ class GetALLUrls(APIView):
         database=databaseName.objects.filter(id=selected_database).values('database_name')
         database=database[0]['database_name']
         if database=="default":
-            database1_url= UrlTable.objects.all().values().order_by('-id')
-            return Response({'database1_url':database1_url})
+            data= UrlTable.objects.all().values().order_by('-id')
+            return Response({'data':data})
         else:
             print("second")
-            database2_url= UrlTable2.objects.using('second_db').all().values().order_by('-id')
-            return Response({'database2_url':database2_url})
+            data= UrlTable2.objects.using('second_db').all().values().order_by('-id')
+            return Response({'data':data})
 
 # Admin API for Save Question Answer in Database.
 class SaveQuestionAnswer(APIView):
@@ -1047,6 +1054,28 @@ class UserPrediction(APIView):
     
 ## Get All Created User Databases.
 class GetUserDatabase(APIView):
-    def post(self,request,format=None):
+    def get(self,request,format=None):
         user_database= UserdatabaseName.objects.all().values()
-        return Response({"database_id":user_database})
+        return Response({"user_database":user_database})
+    
+    
+# API For Getting Label of USER.
+
+class UserLAbelShow(APIView):
+    def post(self,request):
+        user_id=request.data.get("user_id")
+        userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
+        userdata_base_name=userdb[0]['database_name']
+        mydb=connect_to_database(userdata_base_name)
+        mycursor=mydb.cursor()
+        mycursor.execute("Select id ,topic_name From Topic")
+        data=mycursor.fetchall()
+        labels = []
+        for result in data:
+            label = {
+                "id": result[0],
+                "topic_name": result[1]
+            }
+            labels.append(label)
+        mydb.close()
+        return Response({"data":labels})

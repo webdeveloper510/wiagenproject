@@ -30,6 +30,8 @@ urlpatterns = [
     path('userdatabase/',TrainUserDatabase.as_view()),
     path('alluserdata/',GetUserDatabase.as_view()),
     path('userprediction/',UserPrediction.as_view()),
+    path('userlabel/',UserLAbelShow.as_view()),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
