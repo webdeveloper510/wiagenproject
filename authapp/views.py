@@ -860,6 +860,7 @@ class createuserdatabase(APIView):
             if not userdb:
                 return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "user database name not found"})
             userdata_base_name = userdb[0]['database_name']
+            print("user_id---------->>>",userdata_base_name)
             mydb = mysql.connector.connect(
                 host="localhost",
                 user="root",
@@ -1086,25 +1087,27 @@ class ShowUserLabelDAta(APIView):
     def post(self,request,format=None):
         user_id=request.data.get("user_id")
         label_id=request.data.get("label_id")
-        
-        userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
-        userdata_base_name=userdb[0]['database_name']
-        mydb = connect_to_database(userdata_base_name)
-        mycursor = mydb.cursor()
-        mycursor.execute(f"SELECT question, answer FROM QuestionAndAnswer WHERE topic_id={label_id}")
-
-        data = mycursor.fetchall()
-        mydb.close()
-        if data:
-            question, answer = data
-            response_data = {
-                "Question": question,
-                "Answer": answer,
-                "id": label_id
-                }
-        else:
-            return Response({"data":"Data Not Found"})
-        return Response({"data": response_data})
+        try:
+            userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
+            userdata_base_name=userdb[0]['database_name']
+            mydb = connect_to_database(userdata_base_name)
+            mycursor = mydb.cursor()
+            mycursor.execute(f"SELECT question ,answer, id FROM QuestionAndAnswer WHERE topic_id={label_id}")
+            data=mycursor.fetchall()
+            mydb.close()
+            response_data = []
+            for records in data:
+                response_data.append({
+                    "Question": records[0],
+                    "Answer": records[1],
+                    "id":records[2]
+                })
+            if response_data:
+                return Response({"data":response_data})
+            else:
+                return Response({"data":"Data Not Found"})
+        except Exception as e:
+            return Response({"status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": str(e)})
     
 # API For show label based on selected user database on admion panel.
 class ShowAdminLabel(APIView):
