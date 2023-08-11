@@ -76,7 +76,7 @@ def connect_to_database(user_database):
     mydb = mysql.connector.connect(
         host="localhost",
         user="root",
-        password="",
+        password="admin@123",
         database=user_database)
     return mydb
 class UserRegistrationView(APIView):
@@ -860,11 +860,10 @@ class createuserdatabase(APIView):
             if not userdb:
                 return Response({"status": status.HTTP_400_BAD_REQUEST, "message": "user database name not found"})
             userdata_base_name = userdb[0]['database_name']
-            print("user_id---------->>>",userdata_base_name)
             mydb = mysql.connector.connect(
                 host="localhost",
                 user="root",
-                password=""
+                password="admin@123"
             )
             mycursor = mydb.cursor()
             mycursor.execute(f"CREATE DATABASE IF NOT EXISTS {userdata_base_name}")
@@ -960,6 +959,11 @@ class UserPrediction(APIView):
         prediction=prediction1()
         user_id=request.data.get("user_id")
         user_input=request.data.get("user_input")
+        
+        if not user_id:
+            return Response({"status":status.HTTP_400_BAD_REQUEST,"message":"User Id Not Found"})
+        if not user_input:
+            return Response({"status":status.HTTP_400_BAD_REQUEST,"message":"Question Not Found"})
         userdb=UserdatabaseName.objects.filter(user=user_id).values("database_name")
         userdata_base_name=userdb[0]['database_name']
         mydb = connect_to_database(userdata_base_name)
@@ -1049,9 +1053,12 @@ class UserPrediction(APIView):
 class GetUserDatabase(APIView):
     def get(self,request,format=None):
         user_database= UserdatabaseName.objects.all().values()
-        return Response({"user_database":user_database})
+        if user_database:
+            return Response({"status":status.HTTP_200_OK,"user_database":user_database})
+        else:
+            return Response({"status":status.HTTP_404_NOT_FOUND,"user_database":"Database Not Found"})
     
-# API For Getting Label of USER.
+# API For Getting Label of USER on user panel.
 class UserLAbelShow(APIView):
     def post(self,request):
         user_id=request.data.get("user_id")
@@ -1074,6 +1081,7 @@ class UserLAbelShow(APIView):
             return Response({"data":"Data Not Found"})
         return Response({"data":labels})
     
+# API for click on label show data like question and answer.
 class ShowUserLabelDAta(APIView):
     def post(self,request,format=None):
         user_id=request.data.get("user_id")
@@ -1083,12 +1091,12 @@ class ShowUserLabelDAta(APIView):
         userdata_base_name=userdb[0]['database_name']
         mydb = connect_to_database(userdata_base_name)
         mycursor = mydb.cursor()
-        mycursor.execute("SELECT question, answer FROM QuestionAndAnswer WHERE topic_id= %s", (label_id,))
+        mycursor.execute(f"SELECT question, answer FROM QuestionAndAnswer WHERE topic_id={label_id}")
+
         data = mycursor.fetchall()
         mydb.close()
         if data:
-            print("data 0------>>",data[0])
-            question, answer = data[0]  
+            question, answer = data
             response_data = {
                 "Question": question,
                 "Answer": answer,
@@ -1098,6 +1106,7 @@ class ShowUserLabelDAta(APIView):
             return Response({"data":"Data Not Found"})
         return Response({"data": response_data})
     
+# API For show label based on selected user database on admion panel.
 class ShowAdminLabel(APIView):
     def post(self,request):
         database_id=request.data.get("database_id")
@@ -1119,3 +1128,57 @@ class ShowAdminLabel(APIView):
         else:
             return Response({"data":"Data Not Found"})
         return Response({"data":labels})
+
+# API For delete label with question and answer based on the selected database.
+class UserlabelDelete(APIView):
+    def post(self,request):
+        user_id=request.data.get("user_id")
+        label_id=request.data.get("label_id")
+        try:
+            # Get database name
+            userdb = UserdatabaseName.objects.filter(user=user_id).values("database_name")
+            userdata_base_name = userdb[0]['database_name']
+
+            # Connect to the database
+            mydb = connect_to_database(userdata_base_name)
+            mycursor = mydb.cursor()
+            mycursor.execute(f"SELECT EXISTS(SELECT topic_name from Topic WHERE id={label_id})")
+            exists_result = mycursor.fetchone()[0]
+            if exists_result:
+                # Delete row from QuestionAndAnswer Table
+                mycursor.execute("DELETE FROM QuestionAndAnswer WHERE topic_id = %s", (label_id,))
+
+                # Delete row from Topic Table
+                mycursor.execute("DELETE FROM Topic WHERE id = %s", (label_id,))
+                mydb.commit()
+                mydb.close()
+                return Response({"status": status.HTTP_200_OK, "message": "Label Deleted Successfully"})
+            else:
+                return Response({"status":status.HTTP_404_NOT_FOUND,"message":'Label Not Exist'})
+        except Exception as e:
+            return Response({"status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": str(e)})
+    
+# USER API For Delete specific question and answer.    
+class UserQuestionAnswerDelete(APIView):
+    def post(self, request):
+        user_id=request.data.get("user_id")
+        question_id=request.data.get("question_id")
+        try:
+            # Get database name
+            userdb = UserdatabaseName.objects.filter(user=user_id).values("database_name")
+            userdata_base_name = userdb[0]['database_name']
+            # Connect to the database
+            mydb = connect_to_database(userdata_base_name)
+            mycursor = mydb.cursor()
+            mycursor.execute(f"SELECT EXISTS(SELECT * from QuestionAndAnswer WHERE id={question_id})")
+            exists_result = mycursor.fetchone()[0]
+            if exists_result:
+                mycursor.execute(f"DELETE FROM QuestionAndAnswer WHERE id ={question_id}")
+                mydb.commit()
+                mydb.close()
+                return Response({"status": status.HTTP_200_OK, "message": "Data Deleted Successfully"})
+            else:
+                return Response({"status":status.HTTP_404_NOT_FOUND,"message":'Question ID Not Exist'})
+        except Exception as e:
+            return Response({"status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": str(e)})
+        

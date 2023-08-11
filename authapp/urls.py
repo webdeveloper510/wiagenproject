@@ -26,6 +26,7 @@ urlpatterns = [
     path('deletelabel/',label_delete.as_view()),
     path('deletequestion/',question_delete.as_view()),
     # USER API's
+    
     path('createdatabase/',createuserdatabase.as_view()),
     path('userdatabase/',TrainUserDatabase.as_view()),
     path('alluserdata/',GetUserDatabase.as_view()),
@@ -33,7 +34,8 @@ urlpatterns = [
     path('userlabel/',UserLAbelShow.as_view()),
     path('userlabeldata/',ShowUserLabelDAta.as_view()),
     path('adminlabeldata/',ShowAdminLabel.as_view()),
-
+    path('userlabeldelete/',UserlabelDelete.as_view()),
+    path('userquestionsdelete/',UserQuestionAnswerDelete.as_view()),
 
 ]
 if settings.DEBUG:
